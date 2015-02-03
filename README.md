@@ -1,10 +1,8 @@
 # Short Words
 
-I recently demoed my Elm library ["stage"](http://package.elm-lang.org/packages/imeckler/stage/1.3.0)
-for building up piecewise functions of time, typically to make animations.
+[Click here if you just want to play a game](http://www.izaakmeckler.com/pages/shortwords/shortwords.html)
+called Short Words. Otherwise read on.
 
-[Short Words](http://www.izaakmeckler.com/pages/shortwords/shortwords.html)
-is a game.
 There's currently only one (short) level currently and things are a bit rough around
 the edges. The goal is to move the blue "R" to match the red "R" using the available
 moves. The number of moves you have remaining is shown at the top left.
