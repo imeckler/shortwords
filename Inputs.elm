@@ -1,6 +1,7 @@
 module Inputs where
 
 import Signal
+import Move(Move)
 
 moveClicks = Signal.subscribe clickMoveChan
 

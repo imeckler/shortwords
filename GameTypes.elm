@@ -3,6 +3,8 @@ module GameTypes where
 import Move
 import Move(Move)
 
+type alias Game = List Level
+
 type alias Level =
   { availableMoves : List Move
   , maxMoves       : Int
@@ -25,7 +27,7 @@ type alias LevelState =
   , justLost  : Bool
   }
 
-type AnimState =
+type alias AnimState =
   { currTranses : Move.SInterp
   , movesLeft   : Int
   }

@@ -2,7 +2,9 @@ module Draw where
 
 import Inputs(..)
 import Config
+import Move
 import Move(Move)
+import Html
 import Html(..)
 import Html.Attributes(style)
 import Html.Events(..)
@@ -10,6 +12,7 @@ import GameTypes(..)
 import Signal
 import Color
 import Stage
+import Stage (Stage, ForATime, Forever)
 import Stage.Infix(..)
 import Util(..)
 import Graphics.Collage(..)
@@ -25,33 +28,6 @@ import Isom(Isom(..))
 
 withAlpha a c = let {red,green,blue} = Color.toRgb c in
   Color.rgba red green blue a
-
-winScreen w h color =
-  let dur = 1 * second
-      sty a =
-        { typeface = ["Futura", "sans-serif"]
-        , height   = Just 100
-        , color    = withAlpha a winTextColor
-        , bold     = False
-        , italic   = False
-        , line     = Nothing
-        }
-      fade =
-        Stage.sustain <| Stage.for dur <| \t ->
-          let a = ease easeInQuad float 0 1 dur t in
-          group
-          [ filled (withAlpha a color) (rect w h)
-          , formText (sty a) "You\nWin!"
-          ]
-  in
-  Stage.stayFor (1 * second) (group [])
-  <> fade
-
-winOverlay = 
-  filterMap (\s ->
-    if s.hasWon then Just (winScreen w h fadeColor)
-                else Nothing)
-    (Stage.stayForever (group []))
 
 -- would prefer this not be firing once done... that's really a shame.
 -- especially since one doesn't think of this as events. Consider making
@@ -99,7 +75,7 @@ plane s =
         [ filled movesLeftCircleColor (circle 30)
         , formText {defaultStyle | height <- Just 30} (toString s.movesLeft)
         ]
-      |> move (-200, 200)
+        |> move (-200, 200)
 
       axes =
         let mk (a, b) = traced (dotted Color.black) (segment (-a, -b) (a, b)) in
@@ -108,7 +84,7 @@ plane s =
   collage w h
   [ axes
   , movesLeft
-  , Signal.map2 (\c t -> groupTransform t (anR c)) Config.colors s.currTranses
+  , group <| List.map2 (\c t -> groupTransform t [anR c]) Config.colors s.currTranses
   ]
 
 buttonArt : Isom -> Form
@@ -178,14 +154,33 @@ transButtons =
   ] 
   << List.map moveButton << .availableMoves
 
-winAnim : Move -> GameState -> Stage Forever Html
+-- winAnim : Move -> GameState -> Stage Forever Html
 winAnim m s =
-  let ls = s.levelState in
+  let ls                     = s.levelState
+      fadeTime               = 1 * second
+      winScreen t withButton =
+        div
+        [ style
+          [ ("backgroundColor", colorStr fadeColor)
+          , ("opacity", toString (t / fadeTime))
+          , ("text-align", "center")
+          ]
+        ]
+        ([ Html.text ("You\n\nwin!") ]
+        ++ if withButton
+           then
+           [ button 
+             [ onClick (Signal.send nextLevelChan ()) ]
+             [ Html.text "Next" ]
+           ]
+           else [])
+
+  in
   Stage.map (\t -> plane {currTranses=t, movesLeft=s.movesLeft})
     (Move.interpret m ls.prevMove)
-  +> \p ->
-    flow 
-  
+  +> \p -> Stage.for fadeTime (\t -> 
+    flow inward
+    [ Html.toElement w h (winScreen t True), p])
 
 -- UTIL
 colorStr c =

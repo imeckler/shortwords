@@ -45,8 +45,16 @@ winning lev trans =
 w = 500
 h = 500
 
-initialState : Level -> LevelState
-initialState lev =
+initialGameState : Game -> GameState
+initialGameState (lev::levs) = 
+  { levelState = initialLevelState lev
+  , currLevel  = lev
+  , rest       = levs
+  , finished   = False
+  }
+
+initialLevelState : Level -> LevelState
+initialLevelState lev =
   { movesLeft = lev.maxMoves
   , postMove  = lev.initial
   , preMove   = lev.initial
@@ -54,21 +62,17 @@ initialState lev =
   , justLost  = False
   }
 
-transes lev =
-  let init = Stage.stayForever lev.initial in
-  filterMap (\s ->
-    case s.currMove of
-      Nothing -> Just init
-      Just m  -> Just <| Stage.sustain <| Move.interpret m s.preMove)
-    init
-
-transes =
+transes updates state =
   let init = Stage.stayForever lev.initial in
   Signal.map2 (\u s -> case u of
     Clicked m -> Just <| Stage.sustain <| Move.interpret m s.preMove
     _         -> Nothing)
     updates state
   |> filterJust
+  |> (\ss -> Stage.run ss (Time.every 30))
+
+clickMoves = Signal.subscribe clickMoveChan
+
 
 update u s = case u of
   NextLevel -> updateNextLevel s
@@ -77,7 +81,7 @@ update u s = case u of
 updateNextLevel s =
   case s.rest of
     []      -> { s | finished <- True }
-    l :: ls -> { levelState = initialState l, currLevel = l, rest = ls }
+    l :: ls -> { levelState = initialLevelState l, currLevel = l, rest = ls }
 
 updateWithMove m s =
   let ls = s.levelState
@@ -92,7 +96,7 @@ updateWithMove m s =
             , justLost  = False
             }
           | ls.movesLeft == 1      -> 
-            let s0 = (initialState g.currLevel) in {s0 | justLost <- True}
+            let s0 = (initialLevelState g.currLevel) in {s0 | justLost <- True}
           | otherwise             ->
             { movesLeft = ls.movesLeft - 1
             , postMove  = postMove'
@@ -102,6 +106,22 @@ updateWithMove m s =
             }
   in
   { s | levelState <- ls' }
+
+
+run g =
+
+  let updates =
+        Signal.mergeMany
+        [ List.filterMap (Maybe.map Clicked) (Signal.subscribe clickMoveChan)
+        , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
+        , Signal.map Hovered (Signal.subscribe hoverMoveChan)
+        ]
+
+      state = Signal.foldp update (initialState updates 
+      transSig = transes updates state
+      animState = Signal.map2 (\t s -> {currTranses = t, movesLeft = s.movesLeft}) transSig state 
+  in
+  plane 
 
 run lev =
   let state       = filterFold (\mm s -> mm `Maybe.andThen` \m -> update lev m s) (initialState lev) moveClicks
