@@ -17,18 +17,42 @@ type alias GameState =
   , currLevel  : Level
   , rest       : List Level
   , finished   : Bool
+  , lastMove  : Maybe Move
   }
+
+type Triggered
+  = Have
+  | Havent
+
+type Ending
+  = Win {pre : Move.SInterp, move : Move, movesLeft : Int}
+  | Lose
+    { pre       : Move.SInterp
+    , move      : Move
+    , init      : Move.SInterp
+    , maxMoves  : Int
+    }
+
+type EndState
+  = Normal
+  | End Ending Triggered
 
 type alias LevelState =
   { movesLeft : Int
   , postMove  : Move.SInterp
   , preMove   : Move.SInterp
-  , hasWon    : Bool
-  , justLost  : Bool
+  , endState  : EndState
   }
 
 type alias AnimState =
   { currTranses : Move.SInterp
   , movesLeft   : Int
   }
+
+type Update
+  = Clicked Move
+  | NextLevel
+  | Hovered Move
+  | Unhovered
+  | NoOp
 

@@ -1,12 +1,13 @@
 module Draw where
 
 import Inputs(..)
+import Maybe
 import Config
 import Move
 import Move(Move)
 import Html
 import Html(..)
-import Html.Attributes(style)
+import Html.Attributes(style, class)
 import Html.Events(..)
 import GameTypes(..)
 import Signal
@@ -67,6 +68,47 @@ anR color =
   Text.style {defaultStyle | height <- Just 50, color <- color} (Text.fromString "R")
   |> Text.centered
   |> toForm
+
+type AnimatableEvent
+  = SimpleMoveE { pre : Move.SInterp, move : Move, movesLeft : Int }
+  | WinE { pre : Move.SInterp, move : Move, movesLeft : Int }
+  | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
+  | NextLevelE { init : Move.SInterp, maxMoves : Int }
+
+animEvents : Signal Update -> Signal GameState -> Signal (Maybe AnimatableEvent)
+animEvents updates state =
+  Signal.map2 (\u s -> let ls = s.levelState in case u of
+    Clicked m -> case ls.endState of
+      End _ Have          -> Nothing
+      End (Win w) Havent  -> Just (WinE w)
+      End (Lose l) Havent -> Just (LoseE l)
+      Normal              ->
+        Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
+
+    NextLevel -> Just (NextLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    _          -> Nothing)
+    updates state
+
+animate : AnimatableEvent -> Stage Forever Element
+animate e = case e of
+  NextLevelE d ->
+    Stage.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
+  SimpleMoveE d  -> Stage.sustain (planeStage d)
+  WinE d         -> winAnim d
+  LoseE d        ->
+    let flashRed =
+          Stage.stayFor (1/2*second) (collage w h [filled Color.red (rect w h)])
+    in
+    planeStage {d | movesLeft = d.maxMoves} +> \p -> 
+    flashRed
+    <> Stage.stayFor (1/2 * second) p
+    <> flashRed 
+    <> Stage.stayForever (plane {movesLeft=d.maxMoves, currTranses=d.init})
+    
+animations : Element -> Signal Update -> Signal GameState -> Signal (Stage Forever Element)
+animations openingScreen updates state =
+  filterMap (Maybe.map animate) (Stage.stayForever openingScreen)
+    (animEvents updates state)
 
 plane : AnimState -> Element
 plane s =
@@ -145,6 +187,12 @@ transButtons =
         [ onClick (Signal.send clickMoveChan (Just m))
         , onMouseEnter (Signal.send hoverMoveChan (Just m))
         , onMouseLeave (Signal.send hoverMoveChan Nothing)
+        , class "movebutton"
+        , style
+          [ ("display", "inline-block")
+          , ("padding", "5px")
+          , ("pointEvents", "auto")
+          ]
         ]
   in
   div
@@ -154,19 +202,25 @@ transButtons =
   ] 
   << List.map moveButton << .availableMoves
 
--- winAnim : Move -> GameState -> Stage Forever Html
-winAnim m s =
-  let ls                     = s.levelState
-      fadeTime               = 1 * second
+planeStage d =
+  Stage.map (\t -> plane {currTranses=t, movesLeft=d.movesLeft})
+    (Move.interpret d.move d.pre)
+
+-- winAnim : Move -> GameState -> Stage Forever Element
+winAnim d =
+  let fadeTime               = 1 * second
       winScreen t withButton =
         div
         [ style
           [ ("backgroundColor", colorStr fadeColor)
+          , ("width", px w)
+          , ("height", px h)
           , ("opacity", toString (t / fadeTime))
           , ("text-align", "center")
+          , ("pointEvents", "auto")
           ]
         ]
-        ([ Html.text ("You\n\nwin!") ]
+        ([ Html.p [] [Html.text "You\n\nwin!"] ]
         ++ if withButton
            then
            [ button 
@@ -176,11 +230,17 @@ winAnim m s =
            else [])
 
   in
-  Stage.map (\t -> plane {currTranses=t, movesLeft=s.movesLeft})
-    (Move.interpret m ls.prevMove)
+  (planeStage d
   +> \p -> Stage.for fadeTime (\t -> 
     flow inward
-    [ Html.toElement w h (winScreen t True), p])
+    [ Html.toElement w h (winScreen t True), p]))
+  |> Stage.sustain
+
+withButtons mainScreen s =
+  flow down
+  [ mainScreen
+  , Html.toElement w 300 (transButtons s.currLevel)
+  ]
 
 -- UTIL
 colorStr c =

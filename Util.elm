@@ -1,5 +1,6 @@
 module Util where
 
+import List((::))
 import Transform2D
 import Signal
 
@@ -19,4 +20,13 @@ filterJust : a -> Signal (Maybe a) -> Signal a
 filterJust = filterMap identity
 
 firstDo x y = Transform2D.multiply y x
+
+maybe : b -> (a -> b) -> Maybe a -> b
+maybe y f mx = case mx of
+  Nothing -> y
+  Just x -> f x
+
+and xs = case xs of
+  x :: xs' -> x && and xs'
+  []       -> True
 
