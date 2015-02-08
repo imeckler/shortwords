@@ -171,7 +171,7 @@ buttonArt =
         groupTransform (Transform2D.rotation a)
         [ traced (thick Color.black) (segment (-r', 0) (r', 0))
         , filled Color.black (ngon 3 10)
-          |> moveX r'
+          |> moveX (r' - 7)
         ]
   
       arc r a =
