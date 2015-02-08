@@ -1,5 +1,6 @@
 module Draw where
 
+import String
 import Inputs(..)
 import Maybe
 import Config
@@ -30,21 +31,6 @@ import Isom(Isom(..))
 withAlpha a c = let {red,green,blue} = Color.toRgb c in
   Color.rgba red green blue a
 
--- would prefer this not be firing once done... that's really a shame.
--- especially since one doesn't think of this as events. Consider making
--- fancier type that holds onto constant forever value if there is one
-loseOverlay =
-  let dur = (1/8) * second
-      alpha = Stage.stayFor (second / 4) 1
---        Stage.for dur (ease easeInQuad float 0 1 dur)
---        <> Stage.for dur (ease easeOutQuad float 1 0 dur)
-      screen =
-        Stage.map (\a -> filled (withAlpha a Color.red) (rect w h)) alpha
-  in
-  filterMap (\s ->
-    if s.justLost then Just (screen <> Stage.stayForever (group [])) else Nothing)
-    (Stage.stayForever (group []))
-
 withBorder b c e =
   color c
     (container (widthOf e + (2 * b)) (heightOf e + (2 * b)) middle e)
@@ -72,15 +58,18 @@ anR color =
 type AnimatableEvent
   = SimpleMoveE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | WinE { pre : Move.SInterp, move : Move, movesLeft : Int }
+  | GameWonE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
   | NextLevelE { init : Move.SInterp, maxMoves : Int }
+
+onLastLevel = List.isEmpty << .rest
 
 animEvents : Signal Update -> Signal GameState -> Signal (Maybe AnimatableEvent)
 animEvents updates state =
   Signal.map2 (\u s -> let ls = s.levelState in case u of
     Clicked m -> case ls.endState of
       End _ Have          -> Nothing
-      End (Win w) Havent  -> Just (WinE w)
+      End (Win w) Havent  -> Just (if onLastLevel s then GameWonE w else WinE w)
       End (Lose l) Havent -> Just (LoseE l)
       Normal              ->
         Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
@@ -91,17 +80,29 @@ animEvents updates state =
 
 animate : AnimatableEvent -> Stage Forever Element
 animate e = case e of
+  GameWonE d ->
+    (planeStage d
+    +> \p -> Stage.for (1*second) (\t ->
+      flow outward
+      [ p
+      , Text.fromString "The end" |> Text.style (defTextStyle 60) |> Text.centered
+        |> container w h middle |> color fadeColor
+        |> withOpacity (t / (1*second))
+      ]))
+    |> Stage.sustain
+
   NextLevelE d ->
     Stage.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
   SimpleMoveE d  -> Stage.sustain (planeStage d)
   WinE d         -> winAnim d
   LoseE d        ->
     let flashRed =
-          Stage.stayFor (1/2*second) (collage w h [filled Color.red (rect w h)])
+          Stage.stayFor (1/4*second) (collage w h [filled Color.red (rect w h)])
     in
-    planeStage {d | movesLeft = d.maxMoves} +> \p -> 
-    flashRed
-    <> Stage.stayFor (1/2 * second) p
+    planeStage {d | movesLeft = 0} +> \p -> 
+    Stage.stayFor (1/5 * second) p
+    <> flashRed
+    <> Stage.stayFor (1/5 * second) p
     <> flashRed 
     <> Stage.stayForever (plane {movesLeft=d.maxMoves, currTranses=d.init})
     
@@ -110,11 +111,41 @@ animations openingScreen updates state =
   filterMap (Maybe.map animate) (Stage.stayForever openingScreen)
     (animEvents updates state)
 
+lighten c =
+  let {hue,saturation,lightness,alpha} = Color.toHsl c in
+  Color.hsla hue saturation (2*lightness) 1
+
+hoverArt : LevelState -> Move -> Element
+hoverArt ls m =
+  Stage.finalValue (Move.interpret m ls.postMove)
+  |> List.map2 (\c t -> groupTransform t [anR (withAlpha 0.5 <| lighten c)])
+      Config.colors
+  |> collage w h
+
+titleScreen : Element
+titleScreen =
+  flow down
+  [ Text.fromString "Short Words"
+    |> Text.style (defTextStyle 80)
+    |> Text.centered
+    |> centeredWithWidth w
+  , Html.div
+    [ onClick (Signal.send startGameChan ())
+    , class "swbutton"
+    , customButtonStyle
+    ]
+    [ Html.text "Play" ]
+    |> Html.toElement w 50
+  ]
+  |> container w totalHeight middle |> color fadeColor
+
+
 plane : AnimState -> Element
 plane s =
-  let movesLeft =
+  let movesLeft = let r = 30 in
         group
-        [ filled movesLeftCircleColor (circle 30)
+        [ filled Color.black (circle (r + 4))
+        , filled movesLeftCircleColor (circle r)
         , formText {defaultStyle | height <- Just 30} (toString s.movesLeft)
         ]
         |> move (-200, 200)
@@ -136,10 +167,12 @@ buttonArt =
       thickness = 5
       thick c = let sty = solid c in {sty | width <- thickness}
       arrow a =
-        group
-        [ traced (thick Color.black) (segment (0, -r) (0, r))
-        , filled Color.black (ngon 3 5)
-        ] |> rotate a
+        let r' = r - 3 in
+        groupTransform (Transform2D.rotation a)
+        [ traced (thick Color.black) (segment (-r', 0) (r', 0))
+        , filled Color.black (ngon 3 10)
+          |> moveX r'
+        ]
   
       arc r a =
         let n = 50
@@ -153,7 +186,7 @@ buttonArt =
         [ traced (thick rotateArcColor) (arc r' a)
         , ngon 3 10
           |> filled rotateArcColor
-          |> rotate (-pi /6)
+          |> rotate ((-pi /6) + if a < 0 then pi else 0)
           |> moveX r'
           |> sing |> groupTransform (Transform2D.rotation a) -- why doesn't rotate work...
         ]
@@ -164,25 +197,30 @@ buttonArt =
         ] |> rotate a
   in
   \t -> case t of
-    Translate (x, y) -> arrow (atan2 y x)
-    Rotation a       -> rotArc a
-    Reflection a     -> refLine a
+    Translation (x, y) -> arrow (atan2 y x)
+    Rotation a       -> rotArc (normalizeAngle a)
+    Reflection a     -> refLine (normalizeAngle a)
     Identity         -> group []
 
 transButtons : Level -> Html
-transButtons = 
+transButtons lev = 
   let (buttonW, buttonH) = (80, 80)
+      n = List.length <| List.head <| lev.availableMoves
       moveButton m =
-        List.map2 (\c t ->
+        List.map3 (\i c t ->
           div
-          [ style
+          [ style <|
             [ ("height", px buttonH), ("width", px buttonW)
             , ("backgroundColor", colorStr c)
             ]
+          , class <|
+              if | i == 0 -> "top-isom isom"
+                 | i == n - 1 -> "bottom-isom isom"
+                 | otherwise -> "isom"
           ]
           [ fromElement (collage buttonW buttonH [buttonArt t]) ]
         )
-        Config.colors m
+        [0..(n - 1)] Config.colors m
         |> div
         [ onClick (Signal.send clickMoveChan (Just m))
         , onMouseEnter (Signal.send hoverMoveChan (Just m))
@@ -191,7 +229,7 @@ transButtons =
         , style
           [ ("display", "inline-block")
           , ("padding", "5px")
-          , ("pointEvents", "auto")
+          , ("pointerEvents", "auto")
           ]
         ]
   in
@@ -200,40 +238,46 @@ transButtons =
     [ ("textAlign", "center")
     ]
   ] 
-  << List.map moveButton << .availableMoves
+  <| List.map moveButton <| lev.availableMoves
 
 planeStage d =
   Stage.map (\t -> plane {currTranses=t, movesLeft=d.movesLeft})
     (Move.interpret d.move d.pre)
 
 -- winAnim : Move -> GameState -> Stage Forever Element
+
+withOpacity o elt =
+  Html.toElement (widthOf elt) (heightOf elt) <|
+    div [style [("opacity", toString o)]] [Html.fromElement elt]
+
 winAnim d =
   let fadeTime               = 1 * second
       winScreen t withButton =
-        div
-        [ style
-          [ ("backgroundColor", colorStr fadeColor)
-          , ("width", px w)
-          , ("height", px h)
-          , ("opacity", toString (t / fadeTime))
-          , ("text-align", "center")
-          , ("pointEvents", "auto")
-          ]
+        flow down (
+        [ Text.fromString "You win!"
+          |> Text.style (defTextStyle 80)
+          |> Text.centered
+          |> centeredWithWidth w
         ]
-        ([ Html.p [] [Html.text "You\n\nwin!"] ]
-        ++ if withButton
-           then
-           [ button 
-             [ onClick (Signal.send nextLevelChan ()) ]
-             [ Html.text "Next" ]
-           ]
-           else [])
+        ++ if withButton then
+        [ Html.div
+          [ onClick (Signal.send nextLevelChan ())
+          , class "swbutton"
+          ]
+          [ Html.text "Next Level" ]
+          |> Html.toElement w 30
+        ] else [])
+        |> container w h middle
+        |> color fadeColor
+        |> withOpacity (t / fadeTime)
 
   in
   (planeStage d
-  +> \p -> Stage.for fadeTime (\t -> 
+  +> \p ->
+  Stage.stayFor (1/2*second) p
+  <> Stage.for fadeTime (\t -> 
     flow inward
-    [ Html.toElement w h (winScreen t True), p]))
+    [ winScreen t True, p]))
   |> Stage.sustain
 
 withButtons mainScreen s =
@@ -252,7 +296,6 @@ colorStr c =
   toString alpha ++ ")"
 
 px n = toString n ++ "px"
-sing x = [x]
 
 -- colors
 backgroundColor       = Color.rgb 223 223 223
@@ -263,3 +306,66 @@ buttonBackgroundColor = winTextColor
 rotateArcColor        = fadeColor
 movesLeftTextColor    = winTextColor
 movesLeftCircleColor  = fadeColor
+defTextStyle h        =
+  { typeface = ["Futura", "sans-serif"]
+  , height   = Just h
+  , color    = winTextColor
+  , bold     = False
+  , italic   = False
+  , line     = Nothing
+  }
+defaultFontStr = String.join "," ((defTextStyle 0).typeface)
+
+customButtonStyle =
+  style
+  [ ("pointerEvents", "auto")
+  ]
+
+globalStyle = 
+  let buttonColor = Color.rgb 0 119 219 in
+  Html.toElement 0 0 <| styleNode <|
+  [ ( ".swbutton"
+    , [ ("pointer-events", "auto")
+      , ("width", px customButtonW)
+      , ("height", px customButtonH)
+      , ("line-height", px customButtonH)
+      , ("background-color", colorStr buttonColor)
+      , ("text-align", "center")
+      , ("border-radius", px 9)
+      , ("border", "3px solid black")
+      , ("margin", "0 auto")
+      , ("font-family", defaultFontStr)
+      , ("font-size", px 20)
+      , ("color", colorStr Color.white)
+      , ("cursor", "pointer")
+      ]
+    )
+  , ( ".swbutton:hover"
+    , [ ("background-color", colorStr (lighten buttonColor)) ]
+    )
+  , ( ".top-isom"
+    , [ ("border-top-left-radius", px 8)
+      , ("border-top-right-radius", px 8)
+      , ("border-top", "4px solid black")
+      ]
+    )
+  , ( ".bottom-isom"
+    , [ ("border-bottom-left-radius", px 8)
+      , ("border-bottom-right-radius", px 8)
+      , ("border-bottom", "4px solid black")
+      ]
+    )
+  , ( ".isom"
+    , [ ("border-left", "4px solid black")
+      , ("border-right", "4px solid black")
+      , ("cursor", "pointer")
+      ]
+    )
+  , ( ".movebutton:hover"
+    , [("opacity", toString 0.6)]
+    )
+  ]
+
+customButtonW = 100
+customButtonH = 50
+

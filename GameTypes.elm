@@ -56,3 +56,8 @@ type Update
   | Unhovered
   | NoOp
 
+type Mode
+  = TitleScreen
+  | PlayLevel
+  | Finished
+

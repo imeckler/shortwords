@@ -13,3 +13,5 @@ hoverMoveChan = Signal.channel Nothing
 
 nextLevelChan : Signal.Channel ()
 nextLevelChan = Signal.channel ()
+
+startGameChan = Signal.channel ()

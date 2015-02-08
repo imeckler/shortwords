@@ -10,7 +10,7 @@ import Easing(..)
 import Config(transitionTime)
 
 type Isom
-  = Translate (Float, Float)
+  = Translation (Float, Float)
   | Rotation Float
   | Reflection Float -- angle in radians
   | Identity
@@ -18,7 +18,7 @@ type Isom
 sInterpret : Isom -> Transform2D
 sInterpret m = case m of
   Identity -> Transform2D.identity
-  Translate pt -> uncurry Transform2D.translation pt
+  Translation pt -> uncurry Transform2D.translation pt
   Rotation a -> Transform2D.rotation a
   Reflection a ->
     List.foldr1 Transform2D.multiply
@@ -31,7 +31,7 @@ interpret : Isom -> (Transform2D -> Stage ForATime Transform2D)
 interpret t tInit = Stage.map (firstDo tInit) <| Stage.for transitionTime <| case t of
   Identity -> (\_ -> Transform2D.identity)
 
-  Translate pt ->
+  Translation pt ->
     uncurry Transform2D.translation
     << ease easeInOutQuad (pair float) (0,0) pt transitionTime
 
@@ -48,3 +48,8 @@ interpret t tInit = Stage.map (firstDo tInit) <| Stage.for transitionTime <| cas
     << ease easeInOutQuad float 1 -1 transitionTime
 
 firstDo x y = Transform2D.multiply y x
+
+rotation = Rotation << normalizeAngle
+translation = Translation
+reflection = Reflection << normalizeAngle 
+identity = Identity

@@ -1,5 +1,6 @@
 module Level where
 
+import Config(..)
 import Debug
 import Inputs(..)
 import GameTypes(..)
@@ -7,14 +8,14 @@ import Window
 import Util(..)
 import Move
 import Move(Move)
-import Draw(..)
+import Draw
 import Graphics.Element(..)
 import Graphics.Collage(..)
 import Transform2D(Transform2D)
 import Transform2D
 import Html
 import Html.Events(..)
-import Native.IsomUtil
+import Html.Attributes(class)
 import Text
 import Color
 import Time (second)
@@ -27,23 +28,14 @@ import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
 import Maybe
 
-tuply : Transform2D -> (Float, Float, Float, Float, Float, Float)
-tuply = Native.IsomUtil.tuply
-
 winning : Level -> Move.SInterp -> Bool
 winning lev trans = 
-  let closeEnough trans goal =
-    let (g0,g1,g2,g3,g4,g5) = tuply goal
-        (t0,t1,t2,t3,t4,t5) = tuply trans
-        d = 
-          List.map2 (\g t -> (g - t)^2)
-            [g0,g1,g2,g3,g4,g5] [t0,t1,t2,t3,t4,t5]
-          |> List.sum
-    in
-    d < 0.01
-  in
+  let closeEnough trans goal = distTransform2D trans goal < 0.01 in
   and <| List.map2 closeEnough trans lev.goal
 
+allTogether (t1::ts) =
+  let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
+  List.all closeEnough ts
 
 w = 500
 h = 500
@@ -64,30 +56,6 @@ initialLevelState lev =
   , preMove   = lev.initial
   , endState  = Normal
   }
-
-transStages : Element -> Signal Update -> Signal GameState -> Signal (Stage Forever Element)
-transStages openingScreen updates state =
-  Signal.map2 (\u s -> case u of
-    Clicked m -> 
-      if s.levelState.hasWon then Nothing else
-        Just <| Stage.sustain <| 
-          Stage.map 
-            (\t -> plane {currTranses=t, movesLeft=s.levelState.movesLeft})
-            (Move.interpret m s.levelState.preMove)
-
-    NextLevel -> Just <| Stage.stayForever <|
-      plane {currTranses=s.currLevel.initial, movesLeft=s.currLevel.maxMoves}
-
-    _         -> Nothing)
-    updates (Signal.sampleOn updates state)
-  |> filterJust (Stage.stayForever openingScreen)
-
-winStages openingScreen state = 
-  filterMap (\s ->
-    if s.levelState.hasWon
-    then Maybe.map (\m -> winAnim m s) s.lastMove
-    else Nothing)
-    (Stage.stayForever openingScreen) state
 
 update : Update -> GameState -> GameState
 update u s = case u of
@@ -112,11 +80,11 @@ updateWithMove m s =
   let ls = s.levelState
       postMove' = Move.sMultiply (Move.sInterpret m) ls.postMove 
       ls' =
-        case ls.winState of
-          End _ Have    -> ls
-          End wl Havent -> {ls | endState <- End wl Have}
-          Normal        ->
-            if | winning s.currLevel postMove' ->
+        case ls.endState of
+          End wl Havent    -> {ls | endState <- End wl Have}
+          End (Win _) Have -> ls
+          _                ->
+            if | allTogether postMove' ->
                 let movesLeft = ls.movesLeft - 1 in
                 { endState  =
                     End (Win {pre=ls.postMove, move=m, movesLeft=movesLeft})
@@ -144,6 +112,7 @@ updateWithMove m s =
   in
   { s | levelState <- ls', lastMove <- Just m }
 
+
 run g =
   let updates =
         Signal.mergeMany
@@ -153,40 +122,62 @@ run g =
         |> Signal.map (Debug.watch "updates")
 
       state         = Signal.foldp update (initialGameState g) updates
-      openingScreen = let l = List.head g in plane {currTranses=l.initial, movesLeft=l.maxMoves}
-      stages        = Signal.mergeMany
-        [ transStages openingScreen updates state, winStages openingScreen state ]
-      buttons = Signal.map (Html.toElement w 200 << transButtons << .currLevel) state
+      openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
+      stages        = Draw.animations openingScreen updates state
+      buttons       =
+        Signal.map (color Color.white << Html.toElement w buttonsHeight << Draw.transButtons << .currLevel)
+          state
+    
+      hovers = 
+        Signal.subscribe hoverMoveChan
+        |> Signal.dropRepeats
+        |> Signal.merge (Signal.map (\_ -> Nothing)
+            (Signal.subscribe clickMoveChan))
+        |> Signal.map2 (\s x -> case s.levelState.endState of {
+             Normal -> x; _ -> Nothing}) state
+
+      dist = Signal.map (\s ->
+        Debug.watch "dist" (
+          List.map2 distTransform2D s.levelState.preMove s.currLevel.goal))
+          state
+
+      hoverOverlay : Signal Element
+      hoverOverlay =
+        Signal.map2 (\mm s -> maybe empty (Draw.hoverArt s.levelState) mm)
+          hovers state
+
+      gameMode = Signal.foldp (\_ _ -> PlayLevel) TitleScreen (Signal.subscribe startGameChan)
   in
-  Signal.map2 (\mainScreen butts -> flow down [ mainScreen, butts ])
-    (Stage.run stages (Time.every 30)) buttons
-
-
-{-
-
-run lev =
-  let state       = filterFold (\mm s -> mm `Maybe.andThen` \m -> update lev m s) (initialState lev) moveClicks
-      butts       = Html.toElement w 100 (transButtons lev)
-      ghost       = goalGhost lev
-  in
-  Signal.map5 (\trans winScreen loseScreen s (winW, winH) ->
-    container winW winH middle <|
-    flow down
-    [ collage w h
-      [ axes
-      , move (-200, 200) (movesLeft s)
-      , ghost
-      , groupTransform trans [defImage]
-      , winScreen
-      , loseScreen
-      ]
-      |> color backgroundColor
-      |> withBorder 3 borderColor
-    , butts
-    ])
-    (Stage.run (transes lev state) (Time.every 30))
-    (Stage.run (winOverlay state) (Time.every 30))
-    (Stage.run (loseOverlay state) (Time.every 30))
-    state
+  Signal.map5 (\mode mainScreen hov butts (winW, winH) ->
+    let screen =
+      case mode of
+        TitleScreen -> Draw.titleScreen
+        PlayLevel ->
+          flow down
+          [ flow inward
+            [ hov
+            , mainScreen
+            , collage w h [filled Color.white (rect w h)]
+            ]
+          , butts
+          ]
+    in
+    flow inward
+    [ screen
+    , Draw.globalStyle
+    ]
+    |> bordered 3 Color.black
+    |> centeredWithWidth winW
+    )
+    gameMode
+    (Stage.run stages (Time.every 30))
+    hoverOverlay
+    buttons
     Window.dimensions
--}
+
+wrapWithClass c elt =
+  Html.toElement (widthOf elt) (heightOf elt) (Html.div [class c] [Html.fromElement elt])
+
+bordered r c elt =
+  color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)
+
