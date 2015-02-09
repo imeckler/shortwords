@@ -1,305 +1,184 @@
 module Level where
 
+import Style(globalStyle)
+import Config(..)
+import Inputs(..)
+import GameTypes(..)
 import Window
 import Util(..)
 import Move
-import Move(Move(..))
+import Move(Move)
+import Draw
 import Graphics.Element(..)
 import Graphics.Collage(..)
 import Transform2D(Transform2D)
 import Transform2D
-import Html(..)
 import Html
-import Html.Attributes(style)
 import Html.Events(..)
-import Native.IsomUtil
+import Html.Attributes(class)
 import Text
 import Color
 import Time (second)
 import Time
 import Stage
+import Stage(Stage, Forever, ForATime)
 import Stage.Infix(..)
 import List
 import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
 import Maybe
 
-type alias Level =
-  { availableMoves : List Move
-  , maxMoves       : Int
-  , initialTrans   : Transform2D
-  , goal           : Transform2D
+allTogether (t1::ts) =
+  let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
+  List.all closeEnough ts
+
+initialGameState : Game -> GameState
+initialGameState (lev::levs) = 
+  { levelState = initialLevelState lev
+  , currLevel  = lev
+  , rest       = levs
+  , finished   = False
+  , lastMove   = Nothing
   }
 
-type alias GameState =
-  { movesLeft : Int
-  , currMove  : Maybe Move
-  , postMove  : Transform2D
-  , preMove   : Transform2D
-  , hasWon    : Bool
-  , justLost  : Bool
-  }
-
-type Update
-  = Clicked Move
-  | Hovered Move
-
-tuply : Transform2D -> (Float, Float, Float, Float, Float, Float)
-tuply = Native.IsomUtil.tuply
-
-winning lev trans = 
-  let (g0,g1,g2,g3,g4,g5) = tuply lev.goal
-      (t0,t1,t2,t3,t4,t5) = tuply trans
-      d = 
-        List.map2 (\g t -> (g - t)^2)
-          [g0,g1,g2,g3,g4,g5] [t0,t1,t2,t3,t4,t5]
-        |> List.sum
-  in
-  d < 0.01
-
-withAlpha a c = let {red,green,blue} = Color.toRgb c in
-  Color.rgba red green blue a
-
-winScreen w h color =
-  let dur = 1 * second
-      sty a =
-        { typeface = ["Futura", "sans-serif"]
-        , height   = Just 100
-        , color    = withAlpha a winTextColor
-        , bold     = False
-        , italic   = False
-        , line     = Nothing
-        }
-      fade =
-        Stage.sustain <| Stage.for dur <| \t ->
-          let a = ease easeInQuad float 0 1 dur t in
-          group
-          [ filled (withAlpha a color) (rect w h)
-          , formText (sty a) "You\nWin!"
-          ]
-  in
-  Stage.stayFor (1 * second) (group [])
-  <> fade
-
-w = 500
-h = 500
-
-initialState : Level -> GameState
-initialState lev =
+initialLevelState : Level -> LevelState
+initialLevelState lev =
   { movesLeft = lev.maxMoves
-  , currMove  = Nothing
-  , postMove  = lev.initialTrans
-  , preMove   = lev.initialTrans
-  , hasWon    = False
-  , justLost  = False
+  , postMove  = lev.initial
+  , preMove   = lev.initial
+  , endState  = Normal
   }
 
-winOverlay = 
-  filterMap (\s ->
-    if s.hasWon then Just (winScreen w h fadeColor)
-                else Nothing)
-    (Stage.stayForever (group []))
+update : Update -> GameState -> GameState
+update u s = case u of
+  NextLevel      -> updateNextLevel s
+  Clicked m      -> updateWithMove m s
+  Hovered _      -> s
+  Unhovered      -> s
+  SetEndState es -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
+  ResetLevel     -> {s | levelState <- initialLevelState s.currLevel}
+  NoOp           -> s
 
--- would prefer this not be firing once done... that's really a shame.
--- especially since one doesn't think of this as events. Consider making
--- fancier type that holds onto constant forever value if there is one
-loseOverlay =
-  let dur = (1/8) * second
-      alpha = Stage.stayFor (second / 4) 1
---        Stage.for dur (ease easeInQuad float 0 1 dur)
---        <> Stage.for dur (ease easeOutQuad float 1 0 dur)
-      screen =
-        Stage.map (\a -> filled (withAlpha a Color.red) (rect w h)) alpha
+updateNextLevel s =
+  case s.rest of
+    []      -> { s | finished <- True }
+    l :: ls ->
+      { levelState = initialLevelState l
+      , currLevel = l, rest = ls
+      , finished = False 
+      , lastMove = Nothing
+      }
+
+updateWithMove : Move -> GameState -> GameState
+updateWithMove m s =
+  let ls = s.levelState
+      postMove' = Move.sMultiply (Move.sInterpret m) ls.postMove 
+      ls' =
+        case ls.endState of
+          End wl Havent    -> {ls | endState <- End wl Have}
+          End (Win _) Have -> ls
+          _                ->
+            if | allTogether postMove' ->
+                let movesLeft = ls.movesLeft - 1 in
+                { endState  =
+                    End (Win {pre=ls.postMove, move=m, movesLeft=movesLeft})
+                      Havent
+                , movesLeft = movesLeft
+                , postMove  = postMove'
+                , preMove   = ls.postMove
+                }
+               | ls.movesLeft == 1      -> 
+                 let s0 = (initialLevelState s.currLevel)
+                     lose =
+                       { pre      = ls.postMove
+                       , move     = m
+                       , maxMoves = s.currLevel.maxMoves
+                       , init     = s.currLevel.initial
+                      }
+                 in
+                 {s0 | endState <- End (Lose lose) Havent}
+               | otherwise             ->
+                 { movesLeft = ls.movesLeft - 1
+                 , postMove  = postMove'
+                 , preMove   = ls.postMove
+                 , endState  = Normal
+                 }
   in
-  filterMap (\s ->
-    if s.justLost then Just (screen <> Stage.stayForever (group [])) else Nothing)
-    (Stage.stayForever (group []))
+  { s | levelState <- ls', lastMove <- Just m }
 
-transes lev =
-  let init = Stage.stayForever lev.initialTrans in
-  filterMap (\s ->
-    case s.currMove of
-      Nothing -> Just init
-      Just m  -> Just <| Stage.sustain <| Move.interpret m s.preMove)
-    init
 
-withBorder b c e =
-  color c
-    (container (widthOf e + (2 * b)) (heightOf e + (2 * b)) middle e)
-
-update lev m s =
-  let postMove' = Transform2D.multiply (Move.asTransform m) s.postMove 
-  in
-  if | s.hasWon              -> Nothing
-     | winning lev postMove' ->
-       Just 
-       { hasWon    = True
-       , movesLeft = s.movesLeft - 1
-       , currMove  = Just m
-       , postMove  = postMove'
-       , preMove   = s.postMove
-       , justLost  = False
-       }
-     | s.movesLeft == 1      -> 
-       let s0 = (initialState lev) in Just {s0 | justLost <- True}
-     | otherwise             ->
-       Just
-       { movesLeft = s.movesLeft - 1
-       , currMove  = Just m
-       , postMove  = postMove'
-       , preMove   = s.postMove
-       , hasWon    = False
-       , justLost  = False
-       }
-
-formText sty =
-  Text.fromString
-  >> Text.style sty 
-  >> Text.centered
-  >> toForm
-
-defaultStyle =
-  { height   = Just 14
-  , color    = Color.black
-  , typeface = ["Futura", "sans-serif"]
-  , bold     = True
-  , italic   = False
-  , line     = Nothing
-  }
-
-anR color =
-  Text.style {defaultStyle | height <- Just 50, color <- color} (Text.fromString "R")
-  |> Text.centered
-  |> toForm
-
-goalGhost lev = anR ghostColor |> sing |> groupTransform lev.goal
-
-defImage = anR playerColor
-
-run lev =
-  let state       = filterFold (\mm s -> mm `Maybe.andThen` \m -> update lev m s) (initialState lev) moveClicks
-      butts       = Html.toElement w 100 (transButtons lev)
-      ghost       = goalGhost lev
-      axes        =
-        let mk (a, b) = traced (dotted Color.black) (segment (-a, -b) (a, b)) in
-        group [mk (w/2, 0), mk (0, h/2)]
-      movesLeft s =
-        group
-        [ filled movesLeftCircleColor (circle 30)
-        , formText {defaultStyle | height <- Just 30} (toString s.movesLeft)
+run g =
+  let updates =
+        Signal.mergeMany
+        [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
+        , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
+        , Signal.map SetEndState (Signal.subscribe setEndStateChan)
+        , Signal.map (\_ -> ResetLevel) (Signal.subscribe resetLevelChan)
         ]
+
+      state         = Signal.foldp update (initialGameState g) updates
+
+      openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
+      stages        = Draw.animations openingScreen updates state
+      buttons       =
+        Signal.map (
+          color Color.white
+          << Html.toElement w buttonsHeight
+          << Draw.transButtons
+          << .currLevel)
+          state
+    
+      hovers = 
+        Signal.subscribe hoverMoveChan
+        |> Signal.dropRepeats
+        |> Signal.merge (Signal.map (\_ -> Nothing)
+            (Signal.subscribe clickMoveChan))
+        |> Signal.map2 (\s x -> case s.levelState.endState of {
+             Normal -> x; _ -> Nothing}) state
+
+      ends_ = Draw.loseAnimEnds state
+
+      hoverOverlay : Signal Element
+      hoverOverlay =
+        Signal.map2 (\mm s -> maybe empty (Draw.hoverArt s.levelState) mm)
+          hovers state
+
+      gameMode = Signal.foldp (\_ _ -> PlayLevel) TitleScreen (Signal.subscribe startGameChan)
   in
-  Signal.map5 (\trans winScreen loseScreen s (winW, winH) ->
-    container winW winH middle <|
-    flow down
-    [ collage w h
-      [ axes
-      , move (-200, 200) (movesLeft s)
-      , ghost
-      , groupTransform trans [defImage]
-      , winScreen
-      , loseScreen
-      ]
-      |> color backgroundColor
-      |> withBorder 3 borderColor
-    , butts
+  Signal.map5 (\mode mainScreen hov butts (winW, winH) ->
+    let screen =
+          case mode of
+            TitleScreen -> Draw.titleScreen
+            PlayLevel ->
+              flow down
+              [ flow inward
+                [ hov
+                , mainScreen
+                , collage w h [filled Color.white (rect w h)]
+                ]
+              , butts
+              ]
+      
+        game = container winW totalHeight middle screen
+    in
+    flow inward
+    [ globalStyle
+    , container winW (4 + totalHeight) middle Draw.frame
+    , game
     ])
-    (Stage.run (transes lev state) (Time.every 30))
-    (Stage.run (winOverlay state) (Time.every 30))
-    (Stage.run (loseOverlay state) (Time.every 30))
-    state
+
+
+    gameMode
+    (Stage.run stages (Time.every 30))
+    hoverOverlay
+    buttons
     Window.dimensions
 
-moveClicks = Signal.subscribe clickMoveChan
-clickMoveChan : Signal.Channel (Maybe Move)
-clickMoveChan = Signal.channel Nothing
+wrapWithClass c elt =
+  Html.toElement (widthOf elt) (heightOf elt) (Html.div [class c] [Html.fromElement elt])
 
-hoverMoveChan : Signal.Channel (Maybe Move)
-hoverMoveChan = Signal.channel Nothing
+pad k e = container (widthOf e + 2*k) (heightOf e + 2*k) middle e
 
-transButtons : Level -> Html
-transButtons = 
-  let (w, h) = (80, 80)
-      r = 0.9 * min w h / 2
-      thickness = 5
-      thick c = let sty = solid c in {sty | width <- thickness}
-      arrow a =
-        group
-        [ traced (thick Color.black) (segment (0, -r) (0, r))
-        , filled Color.black (ngon 3 5)
-        ] |> rotate a
-  
-      arc r a =
-        let n = 50
-            t = a / n
-            f i = (r * cos (t*i), r * sin (t*i))
-        in List.map f [0..n-1]
-  
-      rotArc a =
-        let r' = r - 3 in
-        group
-        [ traced (thick rotateArcColor) (arc r' a)
-        , ngon 3 10
-          |> filled rotateArcColor
-          |> rotate (-pi /6)
-          |> moveX r'
-          |> sing |> groupTransform (Transform2D.rotation a) -- why doesn't rotate work...
-        ]
+bordered r c elt =
+  color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)
 
-      refLine a =
-        group
-        [ traced (thick Color.green) (segment (-r, 0) (r, 0))
-        ] |> rotate a
-
-      transButton t = 
-        let art = case t of
-              Translate (x, y) -> arrow (atan2 y x)
-              Rotation a       -> rotArc a
-              Reflection a     -> refLine a
-        in
-        div
-        [ style
-          [ ("height", px h), ("width", px w)
-          , ("backgroundColor", colorStr buttonBackgroundColor)
-          , ("border", "1px solid black")
-          , ("borderRadius", px (w/2))
-          , ("cursor", "pointer")
-          , ("display", "inline-block")
-          , ("margin", "3px")
-          ]
-        , onClick (Signal.send clickMoveChan (Just t))
-        , onMouseEnter (Signal.send hoverMoveChan (Just t))
-        , onMouseLeave (Signal.send hoverMoveChan Nothing)
-        ]
-        [ fromElement (collage w h [art]) ]
-  in
-  div
-  [ style
-    [ ("textAlign", "center")
-    ]
-  ] 
-  << List.map transButton << .availableMoves
-
--- UTIL
-colorStr c =
-  let {red,green,blue,alpha} = Color.toRgb c in
-  "rgba(" ++
-  toString red ++ "," ++ 
-  toString green ++ "," ++
-  toString blue ++ "," ++
-  toString alpha ++ ")"
-
-px n = toString n ++ "px"
-sing x = [x]
-
--- colors
-backgroundColor       = Color.rgb 223 223 223
-borderColor           = Color.rgb 188 188 188
-playerColor           = Color.rgb 0 119 219
-ghostColor            = Color.rgb 204 0 51
-fadeColor             = Color.rgb 254 204 9
-winTextColor          = Color.rgb 75 91 110
-buttonBackgroundColor = winTextColor
-rotateArcColor        = fadeColor
-movesLeftTextColor    = winTextColor
-movesLeftCircleColor  = fadeColor

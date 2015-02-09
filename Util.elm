@@ -1,6 +1,20 @@
 module Util where
 
+--debug
+import Text
+import Debug
+
+import Color
+import Graphics.Element(..)
+import String
+import Html
+import List
+import List((::))
+import Native.IsomUtil
+import Transform2D
 import Signal
+
+sing x = [x]
 
 filterFold : (a -> b -> Maybe b) -> b -> Signal a -> Signal b
 filterFold f z s =
@@ -13,4 +27,66 @@ filterFold f z s =
 
 filterMap : (a -> Maybe b) -> b -> Signal a -> Signal b
 filterMap f y = filterFold (\x _ -> f x) y
+
+filterJust : a -> Signal (Maybe a) -> Signal a
+filterJust = filterMap identity
+
+firstDo x y = Transform2D.multiply y x
+
+maybe : b -> (a -> b) -> Maybe a -> b
+maybe y f mx = case mx of
+  Nothing -> y
+  Just x -> f x
+
+and xs = case xs of
+  x :: xs' -> x && and xs'
+  []       -> True
+
+modFloat : Float -> Float -> Float
+modFloat x m = x - m * toFloat (floor (x / m))
+
+-- angles are in [-pi, pi) for convenience of
+-- going to short way around
+normalizeAngle x = 
+  let x' = modFloat x (2 * pi) in if x' >= pi then x' - 2 * pi else x'
+
+tuply : Transform2D.Transform2D -> (Float, Float, Float, Float, Float, Float)
+tuply = Native.IsomUtil.tuply
+
+invert : Transform2D.Transform2D -> Transform2D.Transform2D
+invert m =
+  let (a,b,x,c,d,y) = tuply m
+      det = a * d - b * c
+  in
+  if det == 0
+  then Debug.crash ("0 determinant: " ++ toString (tuply m))
+  else
+    let s = 1 / det in
+    Transform2D.matrix (s*d) (-s*b) (-s*c) (s*a) (-x) (-y)
+
+distTransform2D trans goal =
+    let (g0,g1,g2,g3,g4,g5) = tuply goal
+        (t0,t1,t2,t3,t4,t5) = tuply trans
+    in
+    List.map2 (\g t -> (g - t)^2)
+      [g0,g1,g2,g3,g4,g5] [t0,t1,t2,t3,t4,t5]
+    |> List.sum
+
+styleNode stys =
+  List.map (\(sel, rs) ->
+    sel ++ " " ++ "{" ++
+      String.join "\n" (List.map (\(k, v) -> k ++ ":" ++ v ++ ";") rs)
+    ++ "}") stys
+  |> String.join "\n"
+  |> (Html.node "style" [] << sing << Html.text)
+
+colorStr c =
+  let {red,green,blue,alpha} = Color.toRgb c in
+  "rgba(" ++
+  toString red ++ "," ++ 
+  toString green ++ "," ++
+  toString blue ++ "," ++
+  toString alpha ++ ")"
+
+px n = toString n ++ "px"
 
