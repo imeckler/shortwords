@@ -1,5 +1,6 @@
 module Draw where
 
+import Debug
 import String
 import Inputs(..)
 import Maybe
@@ -8,7 +9,7 @@ import Move
 import Move(Move)
 import Html
 import Html(..)
-import Html.Attributes(style, class)
+import Html.Attributes(style, class, id)
 import Html.Events(..)
 import GameTypes(..)
 import Signal
@@ -19,6 +20,7 @@ import Stage.Infix(..)
 import Util(..)
 import Graphics.Collage(..)
 import Graphics.Element(..)
+import Time
 import Time(second)
 import Easing (ease, float, easeInQuad, easeOutQuad)
 import Config(..)
@@ -27,6 +29,7 @@ import List
 import Transform2D
 import Isom as I
 import Isom(Isom(..))
+import Native.Execute
 
 withAlpha a c = let {red,green,blue} = Color.toRgb c in
   Color.rgba red green blue a
@@ -64,15 +67,25 @@ type AnimatableEvent
 
 onLastLevel = List.isEmpty << .rest
 
+loseAnimEnds : Signal GameState -> Signal ()
+loseAnimEnds state =
+  filterMap (\s -> case s.levelState.endState of
+    End (Lose _) Havent -> Just (Signal.send setEndStateChan Normal)
+    _                   -> Nothing)
+    (Signal.send setEndStateChan Normal) state
+  |> Time.delay loseAnimDuration
+  |> Native.Execute.schedule
+
 animEvents : Signal Update -> Signal GameState -> Signal (Maybe AnimatableEvent)
 animEvents updates state =
   Signal.map2 (\u s -> let ls = s.levelState in case u of
-    Clicked m -> case ls.endState of
-      End _ Have          -> Nothing
-      End (Win w) Havent  -> Just (if onLastLevel s then GameWonE w else WinE w)
-      End (Lose l) Havent -> Just (LoseE l)
-      Normal              ->
-        Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
+    Clicked m ->
+      case ls.endState of
+        End _ Have          -> Nothing
+        End (Win w) Havent  -> Just (if onLastLevel s then GameWonE w else WinE w)
+        End (Lose l) Havent -> Debug.log "hi" <| Just (LoseE l)
+        Normal              ->
+          Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
 
     NextLevel -> Just (NextLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
     _          -> Nothing)
@@ -286,6 +299,11 @@ withButtons mainScreen s =
   , Html.toElement w 300 (transButtons s.currLevel)
   ]
 
+frameWidth = w + 8
+frameHeight = totalHeight + 4
+frame =
+  div [ id "mainframe" ] [] |> Html.toElement frameWidth frameHeight
+
 -- UTIL
 colorStr c =
   let {red,green,blue,alpha} = Color.toRgb c in
@@ -297,7 +315,9 @@ colorStr c =
 
 px n = toString n ++ "px"
 
--- colors
+loseAnimDuration = transitionTime + second * (1/5 + 1/4 + 1/5 + 1/4)
+
+-- styles
 backgroundColor       = Color.rgb 223 223 223
 borderColor           = Color.rgb 188 188 188
 fadeColor             = Color.rgb 254 204 9
@@ -363,6 +383,16 @@ globalStyle =
     )
   , ( ".movebutton:hover"
     , [("opacity", toString 0.6)]
+    )
+  , ( "#mainframe"
+    , [ ("-webkit-box-sizing", "border-box")
+      , ("-moz-box-sizing", "border-box")
+      , ("box-sizing", "border-box")
+      , ("width", px frameWidth)
+      , ("height", px frameHeight)
+      , ("border", "4px solid black")
+      , ("border-radius", px 8)
+      ]
     )
   ]
 

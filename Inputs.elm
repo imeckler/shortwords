@@ -1,6 +1,7 @@
 module Inputs where
 
 import Signal
+import GameTypes(..)
 import Move(Move)
 
 moveClicks = Signal.subscribe clickMoveChan
@@ -15,3 +16,6 @@ nextLevelChan : Signal.Channel ()
 nextLevelChan = Signal.channel ()
 
 startGameChan = Signal.channel ()
+
+setEndStateChan : Signal.Channel EndState
+setEndStateChan = Signal.channel Normal

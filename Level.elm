@@ -37,9 +37,6 @@ allTogether (t1::ts) =
   let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
   List.all closeEnough ts
 
-w = 500
-h = 500
-
 initialGameState : Game -> GameState
 initialGameState (lev::levs) = 
   { levelState = initialLevelState lev
@@ -59,11 +56,12 @@ initialLevelState lev =
 
 update : Update -> GameState -> GameState
 update u s = case u of
-  NextLevel -> updateNextLevel s
-  Clicked m -> updateWithMove m s
-  Hovered _ -> s
-  Unhovered -> s
-  NoOp      -> s
+  NextLevel      -> updateNextLevel s
+  Clicked m      -> updateWithMove m s
+  Hovered _      -> s
+  Unhovered      -> s
+  SetEndState es -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
+  NoOp           -> s
 
 updateNextLevel s =
   case s.rest of
@@ -118,10 +116,14 @@ run g =
         Signal.mergeMany
         [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
         , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
+        , Signal.map SetEndState (Signal.subscribe setEndStateChan)
         ]
         |> Signal.map (Debug.watch "updates")
 
       state         = Signal.foldp update (initialGameState g) updates
+
+      foo = Signal.map (Debug.watch "state" << .endState << .levelState) state
+
       openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
       buttons       =
@@ -135,6 +137,8 @@ run g =
             (Signal.subscribe clickMoveChan))
         |> Signal.map2 (\s x -> case s.levelState.endState of {
              Normal -> x; _ -> Nothing}) state
+
+      ends_ = Draw.loseAnimEnds state
 
       dist = Signal.map (\s ->
         Debug.watch "dist" (
@@ -150,25 +154,27 @@ run g =
   in
   Signal.map5 (\mode mainScreen hov butts (winW, winH) ->
     let screen =
-      case mode of
-        TitleScreen -> Draw.titleScreen
-        PlayLevel ->
-          flow down
-          [ flow inward
-            [ hov
-            , mainScreen
-            , collage w h [filled Color.white (rect w h)]
-            ]
-          , butts
-          ]
+          case mode of
+            TitleScreen -> Draw.titleScreen
+            PlayLevel ->
+              flow down
+              [ flow inward
+                [ hov
+                , mainScreen
+                , collage w h [filled Color.white (rect w h)]
+                ]
+              , butts
+              ]
+      
+        game = container winW totalHeight middle screen
     in
     flow inward
-    [ screen
-    , Draw.globalStyle
-    ]
-    |> bordered 3 Color.black
-    |> centeredWithWidth winW
-    )
+    [ Draw.globalStyle
+    , container winW (4 + totalHeight) middle Draw.frame
+    , game
+    ])
+
+
     gameMode
     (Stage.run stages (Time.every 30))
     hoverOverlay
@@ -177,6 +183,8 @@ run g =
 
 wrapWithClass c elt =
   Html.toElement (widthOf elt) (heightOf elt) (Html.div [class c] [Html.fromElement elt])
+
+pad k e = container (widthOf e + 2*k) (heightOf e + 2*k) middle e
 
 bordered r c elt =
   color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)

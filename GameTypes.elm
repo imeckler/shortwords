@@ -54,6 +54,8 @@ type Update
   | NextLevel
   | Hovered Move
   | Unhovered
+  -- Hack
+  | SetEndState EndState
   | NoOp
 
 type Mode
