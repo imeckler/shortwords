@@ -1,5 +1,6 @@
 module Draw where
 
+import Style(..)
 import Debug
 import String
 import Inputs(..)
@@ -44,17 +45,9 @@ formText sty =
   >> Text.centered
   >> toForm
 
-defaultStyle =
-  { height   = Just 14
-  , color    = Color.black
-  , typeface = ["Futura", "sans-serif"]
-  , bold     = True
-  , italic   = False
-  , line     = Nothing
-  }
-
 anR color =
-  Text.style {defaultStyle | height <- Just 50, color <- color} (Text.fromString "R")
+  let sty = defTextStyle 55 in
+  Text.style {sty | bold <- True, color <- color} (Text.fromString "R")
   |> Text.centered
   |> toForm
 
@@ -124,52 +117,57 @@ animations openingScreen updates state =
   filterMap (Maybe.map animate) (Stage.stayForever openingScreen)
     (animEvents updates state)
 
-lighten c =
-  let {hue,saturation,lightness,alpha} = Color.toHsl c in
-  Color.hsla hue saturation (2*lightness) 1
-
 hoverArt : LevelState -> Move -> Element
 hoverArt ls m =
-  Stage.finalValue (Move.interpret m ls.postMove)
-  |> List.map2 (\c t -> groupTransform t [anR (withAlpha 0.5 <| lighten c)])
-      Config.colors
-  |> collage w h
+  let rs =
+    Stage.finalValue (Move.interpret m ls.postMove)
+    |> List.map2 (\c t -> groupTransform t [anR (withAlpha 0.5 <| lighten c)])
+        Config.colors
+    |> group
+  in
+  collage w h [ axes, movesLeftCircle ls.movesLeft, rs ]
+  |> color Color.white
+
+centeredWithWidth w e =
+  container w (heightOf e) middle e
 
 titleScreen : Element
 titleScreen =
-  flow down
-  [ Text.fromString "Short Words"
-    |> Text.style (defTextStyle 80)
-    |> Text.centered
-    |> centeredWithWidth w
+  Html.div [ style [("marginTop", "-40px")] ]
+  [ Html.div [id "titletext"]
+    [ Html.text "Short Words" ]
+  , Html.p [ id "explanationtext" ]
+    [ Html.text "The goal of the game is to get all R's in the same position using the moves available. The icons on the buttons indicate what effect they have."
+    ]
   , Html.div
     [ onClick (Signal.send startGameChan ())
     , class "swbutton"
-    , customButtonStyle
     ]
     [ Html.text "Play" ]
-    |> Html.toElement w 50
   ]
+  |> Html.toElement w 200
   |> container w totalHeight middle |> color fadeColor
 
+axes =
+  let mk (a, b) = traced (dotted Color.black) (segment (-a, -b) (a, b)) in
+  group [mk (w/2, 0), mk (0, h/2)]
+
+movesLeftCircle n =
+  let r = 30
+      sty = defTextStyle 40
+  in
+  group
+  [ filled Color.black (circle (r + 4))
+  , filled movesLeftCircleColor (circle r)
+  , formText {sty | bold <- True, color <- Color.black} (toString n)
+  ]
+  |> move (-200, 200)
 
 plane : AnimState -> Element
 plane s =
-  let movesLeft = let r = 30 in
-        group
-        [ filled Color.black (circle (r + 4))
-        , filled movesLeftCircleColor (circle r)
-        , formText {defaultStyle | height <- Just 30} (toString s.movesLeft)
-        ]
-        |> move (-200, 200)
-
-      axes =
-        let mk (a, b) = traced (dotted Color.black) (segment (-a, -b) (a, b)) in
-        group [mk (w/2, 0), mk (0, h/2)]
-  in
   collage w h
   [ axes
-  , movesLeft
+  , movesLeftCircle s.movesLeft
   , group <| List.map2 (\c t -> groupTransform t [anR c]) Config.colors s.currTranses
   ]
 
@@ -195,14 +193,18 @@ buttonArt =
   
       rotArc a =
         let r' = r - 3 in
-        group
-        [ traced (thick rotateArcColor) (arc r' a)
-        , ngon 3 10
-          |> filled rotateArcColor
-          |> rotate ((-pi /6) + if a < 0 then pi else 0)
-          |> moveX r'
-          |> sing |> groupTransform (Transform2D.rotation a) -- why doesn't rotate work...
-        ]
+        let arr =
+              group
+              [ traced (thick rotateArcColor) (arc r' a)
+              , ngon 3 10
+                |> filled rotateArcColor
+                |> rotate ((-pi /6) + if a < 0 then pi else 0)
+                |> moveX r'
+                |> sing |> groupTransform (Transform2D.rotation a) -- why doesn't rotate work...
+              ]
+        in
+        if abs a < pi then group [arr, groupTransform (Transform2D.rotation pi) [arr]]
+                      else arr
 
       refLine a =
         group
@@ -239,11 +241,6 @@ transButtons lev =
         , onMouseEnter (Signal.send hoverMoveChan (Just m))
         , onMouseLeave (Signal.send hoverMoveChan Nothing)
         , class "movebutton"
-        , style
-          [ ("display", "inline-block")
-          , ("padding", "5px")
-          , ("pointerEvents", "auto")
-          ]
         ]
   in
   div
@@ -299,103 +296,8 @@ withButtons mainScreen s =
   , Html.toElement w 300 (transButtons s.currLevel)
   ]
 
-frameWidth = w + 8
-frameHeight = totalHeight + 4
 frame =
   div [ id "mainframe" ] [] |> Html.toElement frameWidth frameHeight
 
--- UTIL
-colorStr c =
-  let {red,green,blue,alpha} = Color.toRgb c in
-  "rgba(" ++
-  toString red ++ "," ++ 
-  toString green ++ "," ++
-  toString blue ++ "," ++
-  toString alpha ++ ")"
-
-px n = toString n ++ "px"
-
 loseAnimDuration = transitionTime + second * (1/5 + 1/4 + 1/5 + 1/4)
-
--- styles
-backgroundColor       = Color.rgb 223 223 223
-borderColor           = Color.rgb 188 188 188
-fadeColor             = Color.rgb 254 204 9
-winTextColor          = Color.rgb 75 91 110
-buttonBackgroundColor = winTextColor
-rotateArcColor        = fadeColor
-movesLeftTextColor    = winTextColor
-movesLeftCircleColor  = fadeColor
-defTextStyle h        =
-  { typeface = ["Futura", "sans-serif"]
-  , height   = Just h
-  , color    = winTextColor
-  , bold     = False
-  , italic   = False
-  , line     = Nothing
-  }
-defaultFontStr = String.join "," ((defTextStyle 0).typeface)
-
-customButtonStyle =
-  style
-  [ ("pointerEvents", "auto")
-  ]
-
-globalStyle = 
-  let buttonColor = Color.rgb 0 119 219 in
-  Html.toElement 0 0 <| styleNode <|
-  [ ( ".swbutton"
-    , [ ("pointer-events", "auto")
-      , ("width", px customButtonW)
-      , ("height", px customButtonH)
-      , ("line-height", px customButtonH)
-      , ("background-color", colorStr buttonColor)
-      , ("text-align", "center")
-      , ("border-radius", px 9)
-      , ("border", "3px solid black")
-      , ("margin", "0 auto")
-      , ("font-family", defaultFontStr)
-      , ("font-size", px 20)
-      , ("color", colorStr Color.white)
-      , ("cursor", "pointer")
-      ]
-    )
-  , ( ".swbutton:hover"
-    , [ ("background-color", colorStr (lighten buttonColor)) ]
-    )
-  , ( ".top-isom"
-    , [ ("border-top-left-radius", px 8)
-      , ("border-top-right-radius", px 8)
-      , ("border-top", "4px solid black")
-      ]
-    )
-  , ( ".bottom-isom"
-    , [ ("border-bottom-left-radius", px 8)
-      , ("border-bottom-right-radius", px 8)
-      , ("border-bottom", "4px solid black")
-      ]
-    )
-  , ( ".isom"
-    , [ ("border-left", "4px solid black")
-      , ("border-right", "4px solid black")
-      , ("cursor", "pointer")
-      ]
-    )
-  , ( ".movebutton:hover"
-    , [("opacity", toString 0.6)]
-    )
-  , ( "#mainframe"
-    , [ ("-webkit-box-sizing", "border-box")
-      , ("-moz-box-sizing", "border-box")
-      , ("box-sizing", "border-box")
-      , ("width", px frameWidth)
-      , ("height", px frameHeight)
-      , ("border", "4px solid black")
-      , ("border-radius", px 8)
-      ]
-    )
-  ]
-
-customButtonW = 100
-customButtonH = 50
 

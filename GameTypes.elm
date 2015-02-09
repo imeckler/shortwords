@@ -9,7 +9,6 @@ type alias Level =
   { availableMoves : List Move
   , maxMoves       : Int
   , initial        : Move.SInterp
-  , goal           : Move.SInterp
   }
 
 type alias GameState =

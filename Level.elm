@@ -1,7 +1,7 @@
 module Level where
 
+import Style(globalStyle)
 import Config(..)
-import Debug
 import Inputs(..)
 import GameTypes(..)
 import Window
@@ -27,11 +27,6 @@ import List
 import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
 import Maybe
-
-winning : Level -> Move.SInterp -> Bool
-winning lev trans = 
-  let closeEnough trans goal = distTransform2D trans goal < 0.01 in
-  and <| List.map2 closeEnough trans lev.goal
 
 allTogether (t1::ts) =
   let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
@@ -118,11 +113,8 @@ run g =
         , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
         , Signal.map SetEndState (Signal.subscribe setEndStateChan)
         ]
-        |> Signal.map (Debug.watch "updates")
 
       state         = Signal.foldp update (initialGameState g) updates
-
-      foo = Signal.map (Debug.watch "state" << .endState << .levelState) state
 
       openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
@@ -139,11 +131,6 @@ run g =
              Normal -> x; _ -> Nothing}) state
 
       ends_ = Draw.loseAnimEnds state
-
-      dist = Signal.map (\s ->
-        Debug.watch "dist" (
-          List.map2 distTransform2D s.levelState.preMove s.currLevel.goal))
-          state
 
       hoverOverlay : Signal Element
       hoverOverlay =
@@ -169,7 +156,7 @@ run g =
         game = container winW totalHeight middle screen
     in
     flow inward
-    [ Draw.globalStyle
+    [ globalStyle
     , container winW (4 + totalHeight) middle Draw.frame
     , game
     ])

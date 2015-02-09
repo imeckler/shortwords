@@ -1,28 +1,49 @@
 module Generate where
 
+import String
+import Text
 import List
 import List((::))
 import Transform2D
 import Isom as I
 import Util(..)
+import Move as M
 
-wordsUpTo basis n =
-  if | n == 0    -> ([([], Transform2D.identity)], [])
-     | otherwise ->
-       let (ws, wss) = wordsUpTo basis (n - 1) in
-       ( List.concatMap (\(w, tw) ->
-           List.map (\b -> (b::w, Transform2D.multiply (I.sInterpret b) tw))
-             basis
-         ) ws
-       , ws ++ wss)
+wordsUpTo ident mul interp gens =
+  let go n =
+    if | n == 0    -> ([([], ident)], [])
+       | otherwise ->
+         let (ws, wss) = go (n - 1) in
+         ( List.concatMap (\(w, tw) ->
+             List.map (\(i,b) -> (i::w, mul (interp b) tw))
+               (List.map2 (,) [0..10] gens)
+           ) ws
+         , ws ++ wss)
+  in
+  go
 
-close a b = distTransform2D a b < 0.01
+trans2Dclose a b = distTransform2D a b < 0.01
+close xs ys = and (List.map2 trans2Dclose xs ys)
 
-hardWords basis n =
-  let (ws, wss) = wordsUpTo basis n in
+hardWords ident mul interp gens n =
+  let (ws, wss) = wordsUpTo ident mul interp gens n in
   List.filterMap (\(w, tw) ->
     if List.all (\(_, tw') -> not (close tw tw')) wss
     then Just w
     else Nothing)
     ws
 
+
+b1 =
+  [ [I.identity, I.translation (100, 100), I.translation (-100, -100) ]
+  , [I.rotation (pi/3), I.reflection (3*pi/4), I.identity]
+  , [I.reflection 0, I.identity, I.rotation (-pi/3)]
+  ]
+
+
+main = Text.plainText <| String.join "\n" <| List.map toString <|
+  hardWords (List.repeat 3 Transform2D.identity)
+    M.sMultiply
+    M.sInterpret
+    b1
+    4

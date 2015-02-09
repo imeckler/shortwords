@@ -1,5 +1,10 @@
 module Util where
 
+--debug
+import Text
+import Debug
+
+import Color
 import Graphics.Element(..)
 import String
 import Html
@@ -48,6 +53,17 @@ normalizeAngle x =
 tuply : Transform2D.Transform2D -> (Float, Float, Float, Float, Float, Float)
 tuply = Native.IsomUtil.tuply
 
+invert : Transform2D.Transform2D -> Transform2D.Transform2D
+invert m =
+  let (a,b,x,c,d,y) = tuply m
+      det = a * d - b * c
+  in
+  if det == 0
+  then Debug.crash ("0 determinant: " ++ toString (tuply m))
+  else
+    let s = 1 / det in
+    Transform2D.matrix (s*d) (-s*b) (-s*c) (s*a) (-x) (-y)
+
 distTransform2D trans goal =
     let (g0,g1,g2,g3,g4,g5) = tuply goal
         (t0,t1,t2,t3,t4,t5) = tuply trans
@@ -64,6 +80,13 @@ styleNode stys =
   |> String.join "\n"
   |> (Html.node "style" [] << sing << Html.text)
 
-centeredWithWidth w e =
-  container w (heightOf e) middle e
+colorStr c =
+  let {red,green,blue,alpha} = Color.toRgb c in
+  "rgba(" ++
+  toString red ++ "," ++ 
+  toString green ++ "," ++
+  toString blue ++ "," ++
+  toString alpha ++ ")"
+
+px n = toString n ++ "px"
 
