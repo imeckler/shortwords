@@ -264,8 +264,9 @@ winAnim d =
   let fadeTime               = 1 * second
       winScreen t withButton =
         flow down (
-        [ Text.fromString "You win!"
-          |> Text.style (defTextStyle 80)
+        [ let sty = defTextStyle 80 in
+          Text.fromString "You win!"
+          |> Text.style {sty | bold <- True}
           |> Text.centered
           |> centeredWithWidth w
         ]
