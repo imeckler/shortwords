@@ -29,6 +29,7 @@ import Stage.Infix(..)
 import List
 import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
+import Signal.Extra as Signal
 import Maybe
 
 allTogether (t1::ts) =
@@ -213,7 +214,7 @@ bordered r c elt =
   color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)
 
 sendSets setLocalStorageChan state =
-  Signal.foldp max 0 (Signal.map .highestLevel state)
+  Signal.foldp' max identity (Signal.map .highestLevel state)
   |> Signal.dropRepeats
   |> Signal.map (Signal.send setLocalStorageChan)
   |> Native.Execute.schedule

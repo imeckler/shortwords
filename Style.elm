@@ -123,7 +123,7 @@ globalStyle =
       ]
     )
   , ( ".level-button.active:hover"
-    , [ ("color", colorStr Color.black)
+    , [ ("color", colorStr (Color.grayscale 0.1))
       , ("background-color", colorStr (Color.grayscale 0.5))
       ]
     )
