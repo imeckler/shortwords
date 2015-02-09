@@ -56,7 +56,7 @@ type AnimatableEvent
   | WinE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | GameWonE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
-  | NextLevelE { init : Move.SInterp, maxMoves : Int }
+  | FreshLevelE { init : Move.SInterp, maxMoves : Int }
 
 onLastLevel = List.isEmpty << .rest
 
@@ -80,7 +80,8 @@ animEvents updates state =
         Normal              ->
           Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
 
-    NextLevel -> Just (NextLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    NextLevel  -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    ResetLevel -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
     _          -> Nothing)
     updates state
 
@@ -97,7 +98,7 @@ animate e = case e of
       ]))
     |> Stage.sustain
 
-  NextLevelE d ->
+  FreshLevelE d ->
     Stage.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
   SimpleMoveE d  -> Stage.sustain (planeStage d)
   WinE d         -> winAnim d
@@ -125,7 +126,7 @@ hoverArt ls m =
         Config.colors
     |> group
   in
-  collage w h [ axes, movesLeftCircle ls.movesLeft, rs ]
+  collage w h [ axes, movesLeftCircle ls.movesLeft, rs, resetButtonForm ]
   |> color Color.white
 
 centeredWithWidth w e =
@@ -169,6 +170,7 @@ plane s =
   [ axes
   , movesLeftCircle s.movesLeft
   , group <| List.map2 (\c t -> groupTransform t [anR c]) Config.colors s.currTranses
+  , resetButtonForm
   ]
 
 buttonArt : Isom -> Form
@@ -302,3 +304,13 @@ frame =
 
 loseAnimDuration = transitionTime + second * (1/5 + 1/4 + 1/5 + 1/4)
 
+resetButton =
+  div
+  [ class "swbutton"
+  , onClick (Signal.send resetLevelChan ())
+  , style  [ ("width", px 100) ]
+  ]
+  [ Html.text "Reset" ]
+  |> Html.toElement w customButtonH
+
+resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)

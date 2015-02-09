@@ -19,3 +19,6 @@ startGameChan = Signal.channel ()
 
 setEndStateChan : Signal.Channel EndState
 setEndStateChan = Signal.channel Normal
+
+resetLevelChan : Signal.Channel ()
+resetLevelChan = Signal.channel ()

@@ -56,6 +56,7 @@ update u s = case u of
   Hovered _      -> s
   Unhovered      -> s
   SetEndState es -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
+  ResetLevel     -> {s | levelState <- initialLevelState s.currLevel}
   NoOp           -> s
 
 updateNextLevel s =
@@ -112,6 +113,7 @@ run g =
         [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
         , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
         , Signal.map SetEndState (Signal.subscribe setEndStateChan)
+        , Signal.map (\_ -> ResetLevel) (Signal.subscribe resetLevelChan)
         ]
 
       state         = Signal.foldp update (initialGameState g) updates
@@ -119,7 +121,11 @@ run g =
       openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
       buttons       =
-        Signal.map (color Color.white << Html.toElement w buttonsHeight << Draw.transButtons << .currLevel)
+        Signal.map (
+          color Color.white
+          << Html.toElement w buttonsHeight
+          << Draw.transButtons
+          << .currLevel)
           state
     
       hovers = 

@@ -53,6 +53,7 @@ type Update
   | NextLevel
   | Hovered Move
   | Unhovered
+  | ResetLevel
   -- Hack
   | SetEndState EndState
   | NoOp
