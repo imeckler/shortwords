@@ -316,16 +316,26 @@ resetButton =
   [ Html.text "Reset" ]
   |> Html.toElement w customButtonH
 
+type ButtonStatus
+  = Active
+  | Inactive
+  | Current
+
 levelButtons s =
   let n = Array.length s.levels in
-  listInit (\i -> levelButton i (i <= s.highestLevel)) n
+  listInit (\i -> 
+    levelButton i <|
+      if | i == s.currLevelIndex -> Current
+         | i <= s.highestLevel   -> Active
+         | otherwise             -> Inactive) n
   |> div [id "level-button-panel"]
   |> Html.toElement levelButtonW (n * levelButtonH)
 
-levelButton i active =
+levelButton i status =
   div
-  (  class ("level-button " ++ if active then "active" else "inactive")
-  :: if active then [onClick (Signal.send setLevelChan i)] else [])
+  (  class ("level-button " ++ case status of
+     { Active -> "active"; Inactive -> "inactive"; Current -> "current" })
+  :: if status == Active then [onClick (Signal.send setLevelChan i)] else [])
   [ Html.text (toString i) ]
 
 resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)

@@ -132,6 +132,12 @@ globalStyle =
       , ("background-color", colorStr Color.black)
       ]
     )
+  , ( ".level-button.current"
+    , [ ("color", colorStr Color.white)
+      , ("background-color", colorStr Color.black)
+      , ("cursor", "default")
+      ]
+    )
   , ("body", [("font-family", defaultFontStr)])
   ]
 
