@@ -1,5 +1,7 @@
 module Draw where
 
+import List ((::))
+import Array
 import Style(..)
 import Debug
 import String
@@ -58,7 +60,7 @@ type AnimatableEvent
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
   | FreshLevelE { init : Move.SInterp, maxMoves : Int }
 
-onLastLevel = List.isEmpty << .rest
+onLastLevel s = Array.length s.levels == s.currLevelIndex
 
 loseAnimEnds : Signal GameState -> Signal ()
 loseAnimEnds state =
@@ -82,6 +84,7 @@ animEvents updates state =
 
     NextLevel  -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
     ResetLevel -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    SetLevel _ -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
     _          -> Nothing)
     updates state
 
@@ -312,5 +315,17 @@ resetButton =
   ]
   [ Html.text "Reset" ]
   |> Html.toElement w customButtonH
+
+levelButtons s =
+  let n = Array.length s.levels in
+  listInit (\i -> levelButton i (i <= s.highestLevel)) n
+  |> div [id "level-button-panel"]
+  |> Html.toElement levelButtonW (n * levelButtonH)
+
+levelButton i active =
+  div
+  (  class ("level-button " ++ if active then "active" else "inactive")
+  :: if active then [onClick (Signal.send setLevelChan i)] else [])
+  [ Html.text (toString i) ]
 
 resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)

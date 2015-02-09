@@ -104,8 +104,39 @@ globalStyle =
       , ("color", colorStr (defTextStyle 0).color)
       ]
     )
+  , ( ".level-button"
+    , [ ("width", px levelButtonH), ("height", px levelButtonW)
+      , ("line-height", px levelButtonH)
+      , ("margin", "0")
+      , ("pointer-events", "auto")
+      , ("text-align", "center")
+      ]
+    )
+  , ( ".level-button.active"
+    , [ ("color", colorStr Color.black)
+      , ("cursor", "pointer")
+      ]
+    )
+  , ( ".level-button.inactive"
+    , [ ("color", colorStr (Color.grayscale 0.2))
+      , ("cursor", "pointer")
+      ]
+    )
+  , ( ".level-button.active:hover"
+    , [ ("color", colorStr Color.black)
+      , ("background-color", colorStr (Color.grayscale 0.5))
+      ]
+    )
+  , ( ".level-button.active:active"
+    , [ ("color", colorStr Color.white)
+      , ("background-color", colorStr Color.black)
+      ]
+    )
   , ("body", [("font-family", defaultFontStr)])
   ]
+
+levelButtonH = 40
+levelButtonW = 40
 
 customButtonW = 150
 customButtonH = 50

@@ -1,5 +1,8 @@
 module Level where
 
+import Array
+import Native.Execute
+import Debug
 import Style(globalStyle)
 import Config(..)
 import Inputs(..)
@@ -33,12 +36,14 @@ allTogether (t1::ts) =
   List.all closeEnough ts
 
 initialGameState : Game -> GameState
-initialGameState (lev::levs) = 
-  { levelState = initialLevelState lev
-  , currLevel  = lev
-  , rest       = levs
-  , finished   = False
-  , lastMove   = Nothing
+initialGameState levs = let lev = levs ! 0 in
+  { levelState     = initialLevelState lev
+  , currLevel      = lev
+  , currLevelIndex = 0
+  , levels         = levs
+  , finished       = False
+  , lastMove       = Nothing
+  , highestLevel   = 0
   }
 
 initialLevelState : Level -> LevelState
@@ -49,44 +54,59 @@ initialLevelState lev =
   , endState  = Normal
   }
 
+setLevel : Int -> GameState -> GameState
+setLevel i s = let lev = s.levels ! i in
+  {s | currLevelIndex <- i, currLevel <- lev, levelState <- initialLevelState lev}
+
 update : Update -> GameState -> GameState
 update u s = case u of
-  NextLevel      -> updateNextLevel s
-  Clicked m      -> updateWithMove m s
-  Hovered _      -> s
-  Unhovered      -> s
-  SetEndState es -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
-  ResetLevel     -> {s | levelState <- initialLevelState s.currLevel}
-  NoOp           -> s
+  NextLevel         -> updateNextLevel s
+  Clicked m         -> updateWithMove m s
+  Hovered _         -> s
+  Unhovered         -> s
+  SetLevel i        -> setLevel i s
+  SetHighestLevel n -> {s | highestLevel <- n}
+  SetEndState es    -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
+  ResetLevel        -> {s | levelState <- initialLevelState s.currLevel}
+  NoOp              -> s
+
+(!) a i = case Array.get i a of Just x -> x
 
 updateNextLevel s =
-  case s.rest of
-    []      -> { s | finished <- True }
-    l :: ls ->
-      { levelState = initialLevelState l
-      , currLevel = l, rest = ls
-      , finished = False 
-      , lastMove = Nothing
-      }
+  if onLastLevel s
+  then {s | finished <- True}
+  else
+    let i         = s.currLevelIndex + 1
+        currLevel = s.levels ! i
+    in
+    { levelState     = initialLevelState currLevel
+    , highestLevel   = max s.highestLevel i
+    , currLevelIndex = i
+    , currLevel      = currLevel
+    , levels         = s.levels
+    , finished       = False
+    , lastMove       = Nothing
+    } 
 
 updateWithMove : Move -> GameState -> GameState
 updateWithMove m s =
   let ls = s.levelState
       postMove' = Move.sMultiply (Move.sInterpret m) ls.postMove 
-      ls' =
+      (ls', highestLevel') =
         case ls.endState of
-          End wl Havent    -> {ls | endState <- End wl Have}
-          End (Win _) Have -> ls
+          End wl Havent    -> ({ls | endState <- End wl Have}, s.highestLevel)
+          End (Win _) Have -> (ls, s.highestLevel)
           _                ->
             if | allTogether postMove' ->
                 let movesLeft = ls.movesLeft - 1 in
-                { endState  =
-                    End (Win {pre=ls.postMove, move=m, movesLeft=movesLeft})
-                      Havent
-                , movesLeft = movesLeft
-                , postMove  = postMove'
-                , preMove   = ls.postMove
-                }
+                ( { endState  =
+                      End (Win {pre=ls.postMove, move=m, movesLeft=movesLeft})
+                        Havent
+                  , movesLeft = movesLeft
+                  , postMove  = postMove'
+                  , preMove   = ls.postMove
+                  }
+                , s.currLevelIndex + 1)
                | ls.movesLeft == 1      -> 
                  let s0 = (initialLevelState s.currLevel)
                      lose =
@@ -96,29 +116,35 @@ updateWithMove m s =
                        , init     = s.currLevel.initial
                       }
                  in
-                 {s0 | endState <- End (Lose lose) Havent}
+                 ({s0 | endState <- End (Lose lose) Havent}, s.highestLevel)
                | otherwise             ->
-                 { movesLeft = ls.movesLeft - 1
-                 , postMove  = postMove'
-                 , preMove   = ls.postMove
-                 , endState  = Normal
-                 }
+                 ( { movesLeft = ls.movesLeft - 1
+                   , postMove  = postMove'
+                   , preMove   = ls.postMove
+                   , endState  = Normal
+                   }
+                 , s.highestLevel)
   in
-  { s | levelState <- ls', lastMove <- Just m }
+  { s | levelState <- ls'
+  , lastMove <- Just m
+  , highestLevel <- max s.highestLevel highestLevel'
+  }
 
 
-run g =
+run setHighestLevel setLocalStorageChan g =
   let updates =
         Signal.mergeMany
         [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
         , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
         , Signal.map SetEndState (Signal.subscribe setEndStateChan)
         , Signal.map (\_ -> ResetLevel) (Signal.subscribe resetLevelChan)
+        , Signal.map SetLevel (Signal.subscribe setLevelChan)
+        , Signal.map SetHighestLevel setHighestLevel
         ]
 
-      state         = Signal.foldp update (initialGameState g) updates
+      state = Signal.foldp update (initialGameState g) updates
 
-      openingScreen = let l = List.head g in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
+      openingScreen = let l = g ! 0 in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
       buttons       =
         Signal.map (
@@ -137,6 +163,7 @@ run g =
              Normal -> x; _ -> Nothing}) state
 
       ends_ = Draw.loseAnimEnds state
+      sets_ = sendSets setLocalStorageChan state
 
       hoverOverlay : Signal Element
       hoverOverlay =
@@ -145,20 +172,24 @@ run g =
 
       gameMode = Signal.foldp (\_ _ -> PlayLevel) TitleScreen (Signal.subscribe startGameChan)
   in
-  Signal.map5 (\mode mainScreen hov butts (winW, winH) ->
+  signalMap6 (\mode mainScreen hov butts s (winW, winH) ->
     let screen =
           case mode of
             TitleScreen -> Draw.titleScreen
             PlayLevel ->
-              flow down
-              [ flow inward
-                [ hov
-                , mainScreen
-                , collage w h [filled Color.white (rect w h)]
+              flow inward
+              [ let lbs = Draw.levelButtons s in
+                container w (heightOf lbs) (topRightAt (absolute 0) (absolute 3)) lbs
+              , flow down
+                [ flow inward
+                  [ hov
+                  , mainScreen
+                  , collage w h [filled Color.white (rect w h)]
+                  ]
+                , butts
                 ]
-              , butts
               ]
-      
+
         game = container winW totalHeight middle screen
     in
     flow inward
@@ -166,12 +197,11 @@ run g =
     , container winW (4 + totalHeight) middle Draw.frame
     , game
     ])
-
-
     gameMode
     (Stage.run stages (Time.every 30))
     hoverOverlay
     buttons
+    state
     Window.dimensions
 
 wrapWithClass c elt =
@@ -181,4 +211,10 @@ pad k e = container (widthOf e + 2*k) (heightOf e + 2*k) middle e
 
 bordered r c elt =
   color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)
+
+sendSets setLocalStorageChan state =
+  Signal.foldp max 0 (Signal.map .highestLevel state)
+  |> Signal.dropRepeats
+  |> Signal.map (Signal.send setLocalStorageChan)
+  |> Native.Execute.schedule
 

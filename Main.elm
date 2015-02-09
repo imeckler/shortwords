@@ -1,5 +1,7 @@
 module Main where
 
+import Signal
+import Array
 import Util(..)
 import List
 import Level
@@ -71,6 +73,16 @@ level7moves =
     ]
   }
 
-game = [level1, level2, tripleAction1, level7moves]--, level2, level1]
+game = Array.fromList [level1, level2, tripleAction1, level7moves]--, level2, level1]
 
-main = Level.run game
+main = Level.run setHighestLevel setLocalStorageChan game
+
+-- BAD stuff
+setLocalStorageChan : Signal.Channel Int
+setLocalStorageChan = Signal.channel 0
+
+port setLocalStorage : Signal Int
+port setLocalStorage = Signal.subscribe setLocalStorageChan
+
+port setHighestLevel : Signal Int
+

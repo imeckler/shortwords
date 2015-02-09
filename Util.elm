@@ -4,6 +4,7 @@ module Util where
 import Text
 import Debug
 
+import Array
 import Color
 import Graphics.Element(..)
 import String
@@ -13,6 +14,7 @@ import List((::))
 import Native.IsomUtil
 import Transform2D
 import Signal
+import Signal(Signal, (~))
 
 sing x = [x]
 
@@ -90,3 +92,11 @@ colorStr c =
 
 px n = toString n ++ "px"
 
+onLastLevel s = Array.length s.levels == s.currLevelIndex
+
+listInit f n =
+  let go i = if i == n then [] else f i :: go (i + 1) in
+  go 0
+
+signalMap6 f s1 s2 s3 s4 s5 s6 =
+  Signal.map5 f s1 s2 s3 s4 s5 ~ s6

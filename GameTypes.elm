@@ -1,9 +1,10 @@
 module GameTypes where
 
 import Move
+import Array(Array)
 import Move(Move)
 
-type alias Game = List Level
+type alias Game = Array Level
 
 type alias Level =
   { availableMoves : List Move
@@ -12,11 +13,13 @@ type alias Level =
   }
 
 type alias GameState =
-  { levelState : LevelState
-  , currLevel  : Level
-  , rest       : List Level
-  , finished   : Bool
-  , lastMove  : Maybe Move
+  { levelState     : LevelState
+  , currLevel      : Level
+  , currLevelIndex : Int
+  , levels         : Array Level
+  , finished       : Bool
+  , lastMove       : Maybe Move
+  , highestLevel   : Int
   }
 
 type Triggered
@@ -51,6 +54,8 @@ type alias AnimState =
 type Update
   = Clicked Move
   | NextLevel
+  | SetLevel Int
+  | SetHighestLevel Int
   | Hovered Move
   | Unhovered
   | ResetLevel
