@@ -5,7 +5,7 @@ import Array
 import Util(..)
 import List
 import Level
-import Transform2D
+import Transform2D as T
 import Transform2D(..)
 import Isom as I
 import Move as M
@@ -49,7 +49,7 @@ tripleAction1 =
   { maxMoves = 4
   , availableMoves = [a, c, b]
   , initial = 
-    List.map (\m -> Transform2D.multiply m (Transform2D.translation -50 -50))
+    List.map (\m -> T.multiply m (T.translation -50 -50))
       (List.foldr1 M.sMultiply [c',b',a',b'])
   }
 -- c b a b
@@ -67,13 +67,72 @@ level7moves =
     , [ref, I.identity]
     ]
   , initial =
-    [ Transform2D.identity
-    , List.foldl multiply Transform2D.identity
+    [ T.identity
+    , List.foldl multiply T.identity
       (List.map I.sInterpret [ ref, rot, ref, trans, ref, rot, ref ])
     ]
   }
 
-game = Array.fromList [level1, level2, tripleAction1, level7moves]--, level2, level1]
+salted salt =
+  List.map (\m -> T.multiply m salt)
+  << List.foldr1 M.sMultiply
+  << List.map invMove
+  << List.reverse
+
+invMove = List.map invert << M.sInterpret
+
+(<>) = T.multiply
+
+easy1 = 
+  let  m0 = [ I.reflection (2*pi/3), I.rotation (2*pi/3) ] 
+       m1 = [ I.translation (-100, 0), I.rotation (2*pi/3) ] 
+       m2 = [ I.reflection 0, I.rotation (2*pi/3) ] 
+  in
+  { maxMoves = 3
+  , availableMoves = [m0,m1,m2]
+  , initial = salted (T.translation -50 50 <> T.rotation (pi/3) <> reflection (pi/2))
+      [m2, m0, m1]
+  }
+
+veryEasy1 =
+  let m0 = [ I.reflection (pi/2), I.identity ]
+      m1 = [ I.translation (0,-100), I.identity ]
+  in
+  { maxMoves = 2
+  , availableMoves = [m0,m1]
+  , initial = salted (T.translation -100 0) [m0,m1]
+  }
+
+-- both are solutions!
+veryEasy2 =
+  let m0 = [ I.reflection (pi/2), I.identity ]
+      m1 = [ I.identity, I.rotation (2*pi/3) ]
+  in
+  { maxMoves       = 2
+  , availableMoves = [m0, m1]
+  , initial        = salted (T.translation -100 100 <> reflection (pi/2)) [m0,m1]
+  }
+
+{-
+parity =
+  let m0 = [ reflection pi 
+
+twoTorsion =
+  let m0 = [ , I.identity ]
+      m1 = [ , I.rotation pi ]
+      m0 = [ , I.identity ]
+      m1 = [ , I.rotation pi ]
+-}
+game = Array.fromList
+  [ veryEasy1
+  , veryEasy2
+  , level1
+  , easy1
+  , level2
+  , level7moves
+  , tripleAction1
+  ]
+--, level2, level1]
 
 main = Level.run setHighestLevel setLocalStorageChan game
 

@@ -41,9 +41,16 @@ b1 =
   ]
 
 
+b2 =
+  [ [ I.reflection (2*pi/3), I.rotation (2*pi/3) ] 
+  , [ I.translation (-100, 0), I.rotation (2*pi/3) ] 
+  , [ I.reflection 0, I.rotation (2*pi/3) ] 
+  ]
+
 main = Text.plainText <| String.join "\n" <| List.map toString <|
-  hardWords (List.repeat 3 Transform2D.identity)
+  hardWords (List.repeat 2 Transform2D.identity)
     M.sMultiply
     M.sInterpret
-    b1
-    4
+    b2
+    3
+
