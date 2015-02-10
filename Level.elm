@@ -2,7 +2,6 @@ module Level where
 
 import Array
 import Native.Execute
-import Debug
 import Style(globalStyle)
 import Config(..)
 import Inputs(..)

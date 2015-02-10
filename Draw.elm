@@ -3,7 +3,6 @@ module Draw where
 import List ((::))
 import Array
 import Style(..)
-import Debug
 import String
 import Inputs(..)
 import Maybe
@@ -78,7 +77,7 @@ animEvents updates state =
       case ls.endState of
         End _ Have          -> Nothing
         End (Win w) Havent  -> Just (if onLastLevel s then GameWonE w else WinE w)
-        End (Lose l) Havent -> Debug.log "hi" <| Just (LoseE l)
+        End (Lose l) Havent -> Just (LoseE l)
         Normal              ->
           Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
 
