@@ -4,7 +4,7 @@ import String
 import Text
 import List
 import List((::))
-import Transform2D
+import Transform2D as T
 import Isom as I
 import Util(..)
 import Move as M
@@ -54,8 +54,17 @@ blev2 =
   , [I.reflection (3*pi/4), I.identity]
   ]
 
+bnice =
+  [ [ I.rotation (pi/3), I.translation (0, 50) ]
+  , [ I.translation (-100, 0), I.rotation (pi/2) ]
+  , [ I.rotation (pi/2), I.reflection (pi/2) ]
+  , [ I.reflection 0, I.rotation (pi/3) ]
+  ]
+
+(<>) = T.multiply
+
 main = Text.plainText <| String.join "\n" <| List.map toString <|
-  hardWords (List.repeat 2 (Transform2D.rotation (pi/2)))
+  hardWords (List.repeat 2 (T.rotation (pi/2)))
     M.sMultiply
     M.sInterpret
     blev2

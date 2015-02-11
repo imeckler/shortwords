@@ -35,8 +35,20 @@ level2 =
   { maxMoves = 3
   , availableMoves = [m1,m2,m0,m3]
   , initial =
-    salted (T.rotation (pi/2)) [m0,m3,m1]
+    salted (T.rotation (pi/2)) [m3,m1,m2]
   }
+
+levelNice =
+  let m0 = [ I.rotation (pi/3), I.translation (0, 50) ]
+      m1 = [ I.translation (-100, 0), I.rotation (pi/2) ]
+      m2 = [ I.rotation (pi/2), I.reflection (pi/2) ]
+      m3 = [ I.reflection 0, I.rotation (pi/3) ]
+  in
+  { maxMoves = 4
+  , availableMoves = [m0,m2,m1,m3]
+  , initial = salted (T.translation -50 -50 <> T.rotation (pi/10)) [m2,m0,m1,m3]
+  }
+
 
 tripleAction1 =
   let a = [I.identity, I.translation (100, 100), I.translation (-100, -100)]
@@ -127,6 +139,7 @@ game = Array.fromList
   , level1
   , easy1
   , level2
+  , levelNice
   , level7moves
   , tripleAction1
   ]
