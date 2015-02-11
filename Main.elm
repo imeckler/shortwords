@@ -27,17 +27,15 @@ level1 =
   }
 
 level2 =
+  let m0 = [I.translation (-100, 0), I.translation (-100, 0)]
+      m1 = [I.translation (0, -100), I.translation (0, 100)]
+      m2 = [I.rotation (pi / 2), I.rotation (pi)]
+      m3 = [I.reflection (3*pi/4), I.identity]
+  in
   { maxMoves = 3
-  , availableMoves =
-    [ [I.translation (-100, 0), I.translation (-100, 0)]
-    , [I.translation (0, -100), I.translation (0, 100)]
-    , [I.rotation (pi / 2), I.rotation (pi)]
-    , [I.reflection (3*pi/4), I.identity]
-    ]
+  , availableMoves = [m1,m2,m0,m3]
   , initial =
-    [ multiply (translation 0 100) (reflection pi)
-    , multiply (translation 0 -100) (rotation (-pi/2))
-    ]
+    salted (T.rotation (pi/2)) [m0,m3,m1]
   }
 
 tripleAction1 =

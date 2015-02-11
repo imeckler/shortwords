@@ -47,10 +47,17 @@ b2 =
   , [ I.reflection 0, I.rotation (2*pi/3) ] 
   ]
 
+blev2 =
+  [ [I.translation (-100, 0), I.translation (-100, 0)]
+  , [I.translation (0, -100), I.translation (0, 100)]
+  , [I.rotation (pi / 2), I.rotation (pi)]
+  , [I.reflection (3*pi/4), I.identity]
+  ]
+
 main = Text.plainText <| String.join "\n" <| List.map toString <|
-  hardWords (List.repeat 2 Transform2D.identity)
+  hardWords (List.repeat 2 (Transform2D.rotation (pi/2)))
     M.sMultiply
     M.sInterpret
-    b2
+    blev2
     3
 
