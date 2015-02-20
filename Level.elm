@@ -1,5 +1,6 @@
 module Level where
 
+import AnimationFrame
 import Array
 import Native.Execute
 import Style(globalStyle)
@@ -198,7 +199,7 @@ run setHighestLevel setLocalStorageChan g =
     , game
     ])
     gameMode
-    (Stage.run stages (Time.every 30))
+    (Stage.run (Time.every 30) stages)
     hoverOverlay
     buttons
     state
