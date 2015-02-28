@@ -145,7 +145,7 @@ game = Array.fromList
   ]
 --, level2, level1]
 
-main = Level.run setHighestLevel setLocalStorageChan game
+main = Level.run setHighScore setLocalStorageChan game
 
 -- BAD stuff
 setLocalStorageChan : Signal.Channel Int
@@ -154,5 +154,5 @@ setLocalStorageChan = Signal.channel 0
 port setLocalStorage : Signal Int
 port setLocalStorage = Signal.subscribe setLocalStorageChan
 
-port setHighestLevel : Signal Int
+port setHighScore : Signal Int
 

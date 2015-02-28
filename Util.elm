@@ -15,6 +15,7 @@ import Native.IsomUtil
 import Transform2D
 import Signal
 import Signal(Signal, (~))
+import Ratio
 
 sing x = [x]
 
@@ -51,6 +52,13 @@ modFloat x m = x - m * toFloat (floor (x / m))
 -- going to short way around
 normalizeAngle x = 
   let x' = modFloat x (2 * pi) in if x' >= pi then x' - 2 * pi else x'
+
+normalizeCirculan r =
+  let (a, b) = Ratio.split r
+      a' = a % b
+      a'' = if a' >= (b // 2 + (b % 2)) then a' - b else a'
+  in
+  a'' `Ratio.over` b
 
 tuply : Transform2D.Transform2D -> (Float, Float, Float, Float, Float, Float)
 tuply = Native.IsomUtil.tuply
@@ -100,3 +108,16 @@ listInit f n =
 
 signalMap6 f s1 s2 s3 s4 s5 s6 =
   Signal.map5 f s1 s2 s3 s4 s5 ~ s6
+
+splitAt k xs =
+  if | k == 0    -> ([], xs)
+     | otherwise -> case xs of
+       []     -> ([], xs)
+       x::xs' -> let (a, b) = splitAt (k - 1) xs' in (x::a, b)
+
+groupsOf k xs =
+  let (a, b) = splitAt k xs in
+  case b of
+    [] -> [a]
+    _  -> a :: groupsOf k b
+

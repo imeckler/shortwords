@@ -19,7 +19,7 @@ type alias GameState =
   , levels         : Array Level
   , finished       : Bool
   , lastMove       : Maybe Move
-  , highestLevel   : Int
+  , totalScore     : Int
   }
 
 type Triggered
@@ -66,5 +66,6 @@ type Update
 type Mode
   = TitleScreen
   | PlayLevel
+  | ChooseLevel
   | Finished
 

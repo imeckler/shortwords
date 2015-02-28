@@ -23,5 +23,8 @@ setEndStateChan = Signal.channel Normal
 resetLevelChan : Signal.Channel ()
 resetLevelChan = Signal.channel ()
 
-setLevelChan : Signal.Channel Int
-setLevelChan = Signal.channel 0
+chooseDifficultyChan : Signal.Channel Int
+chooseDifficultyChan = Signal.channel 0
+
+backToMenuChan : Signal.Channel ()
+backToMenuChan = Signal.channel ()

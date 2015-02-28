@@ -176,7 +176,8 @@ run setHighestLevel setLocalStorageChan g =
     let screen =
           case mode of
             TitleScreen -> Draw.titleScreen
-            PlayLevel ->
+            ChooseLevel -> Draw.chooseDifficultyScreen s.totalScore
+            PlayLevel   ->
               flow inward
               [ let lbs = Draw.levelButtons s in
                 container w (heightOf lbs) (topRightAt (absolute 0) (absolute 3)) lbs

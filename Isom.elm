@@ -8,19 +8,22 @@ import Stage
 import Stage(Stage, ForATime)
 import Easing(..)
 import Config(transitionTime)
+import Ratio
 
 type Isom
   = Translation (Float, Float)
-  | Rotation Float
+  | Rotation Ratio.Rational -- in circulans
   | Reflection Float -- angle in radians
   | Identity
 
+rationalRot x = 2 * pi * Ratio.toFloat x
+
 sInterpret : Isom -> Transform2D
 sInterpret m = case m of
-  Identity -> Transform2D.identity
+  Identity       -> Transform2D.identity
   Translation pt -> uncurry Transform2D.translation pt
-  Rotation a -> Transform2D.rotation a
-  Reflection a ->
+  Rotation r     -> Transform2D.rotation (rationalRot r)
+  Reflection a   ->
     List.foldr1 Transform2D.multiply
     [ Transform2D.rotation a
     , Transform2D.scaleY -1
@@ -35,10 +38,10 @@ interpret t tInit = Stage.map (firstDo tInit) <| Stage.for transitionTime <| cas
     uncurry Transform2D.translation
     << ease easeInOutQuad (pair float) (0,0) pt transitionTime
 
-  Rotation x ->
+  Rotation r ->
     Transform2D.rotation
-    << ease easeInOutQuad float 0 x transitionTime
-  
+    << ease easeInOutQuad float 0 (rationalRot r) transitionTime
+
   Reflection a ->
     let r    = Transform2D.rotation a
         rInv = Transform2D.rotation -a
@@ -49,7 +52,7 @@ interpret t tInit = Stage.map (firstDo tInit) <| Stage.for transitionTime <| cas
 
 firstDo x y = Transform2D.multiply y x
 
-rotation = Rotation << normalizeAngle
+rotation = Rotation << normalizeCirculan
 translation = Translation
 reflection = Reflection << normalizeAngle 
 identity = Identity

@@ -134,6 +134,16 @@ hoverArt ls m =
 centeredWithWidth w e =
   container w (heightOf e) middle e
 
+chooseDifficultyScreen : Int -> Element
+chooseDifficultyScreen =
+  let inRowsOfSize k     = groupsOf k >> List.map (Html.div [])
+      difficultyButton n = 
+        div [class "difficulty-button", onClick (chooseDifficultyChan n)]
+          [Html.text (toString n)]
+  in
+  Html.div []
+    (inRowsOfSize 2 <| List.map difficultyButton [3..8])
+
 titleScreen : Element
 titleScreen =
   Html.div [ style [("marginTop", "-40px")] ]
