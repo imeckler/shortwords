@@ -1,8 +1,8 @@
-module StageUtils where
+module PieceUtils where
 
 import List
-import Stage
-import Stage.Internal(..)
+import Piece
+import Piece.Internal(..)
 
 durMin d1 d2 = case (d1, d2) of
   (Forever, _) -> d2
@@ -11,10 +11,10 @@ durMin d1 d2 = case (d1, d2) of
 
 -- errr. how to do empty list case. that's a doozy.
 -- could fix with explicit proxy for t
-sequence : List (Stage t a) -> Stage t (List a)
+sequence : List (Piece t a) -> Piece t (List a)
 sequence ss =
-  let (Stage d0 _ :: ss') = ss in
-  Stage (List.foldl (\(Stage d _) r -> durMin d r) d0 ss')
-    (\t -> List.map (\(Stage _ f) -> f t) ss)
+  let (Piece d0 _ :: ss') = ss in
+  Piece (List.foldl (\(Piece d _) r -> durMin d r) d0 ss')
+    (\t -> List.map (\(Piece _ f) -> f t) ss)
 
 mapM f = sequence << List.map f

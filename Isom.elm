@@ -4,8 +4,8 @@ import Util(..)
 import Transform2D
 import Transform2D(Transform2D)
 import List
-import Stage
-import Stage(Stage, ForATime)
+import Piece
+import Piece(Piece, ForATime)
 import Easing(..)
 import Config(transitionTime)
 import Ratio
@@ -30,8 +30,8 @@ sInterpret m = case m of
     , Transform2D.rotation (-a)
     ]
 
-interpret : Isom -> (Transform2D -> Stage ForATime Transform2D)
-interpret t tInit = Stage.map (firstDo tInit) <| Stage.for transitionTime <| case t of
+interpret : Isom -> (Transform2D -> Piece ForATime Transform2D)
+interpret t tInit = Piece.map (firstDo tInit) <| Piece.for transitionTime <| case t of
   Identity -> (\_ -> Transform2D.identity)
 
   Translation pt ->

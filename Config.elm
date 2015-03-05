@@ -6,6 +6,8 @@ import Time
 w = 500
 h = 500
 
+maxTransLen = 100
+
 buttonsHeight = 300
 
 totalHeight = h + buttonsHeight

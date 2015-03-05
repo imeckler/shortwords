@@ -22,9 +22,9 @@ import Text
 import Color
 import Time (second)
 import Time
-import Stage
-import Stage(Stage, Forever, ForATime)
-import Stage.Infix(..)
+import Piece
+import Piece(Piece, Forever, ForATime)
+import Piece.Infix(..)
 import List
 import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
@@ -32,10 +32,7 @@ import Signal.Extra as Signal
 import Maybe
 import Random
 import Generate
-
-allTogether (t1::ts) =
-  let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
-  List.all closeEnough ts
+import Debug
 
 -- Pass a dummy level
 initialGameState : Level -> GameState
@@ -56,7 +53,7 @@ initialLevelState lev =
   }
 
 update : Update -> GameState -> GameState
-update u s = case u of
+update u s = case Debug.log "update:" u of
   PlayLevelOfDifficulty d -> playLevelOfDifficulty d s
   Clicked m               -> updateWithMove m s
   Hovered _               -> s
@@ -185,7 +182,7 @@ run setTotalScore setLocalStorageChan =
     , game
     ])
     gameMode
-    (Stage.run stages (Time.every 30))
+    (Piece.run (Time.every 30) stages)
     hoverOverlay
     buttons
     state

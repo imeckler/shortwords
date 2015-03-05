@@ -51,7 +51,7 @@ modFloat x m = x - m * toFloat (floor (x / m))
 -- angles are in [-pi, pi) for convenience of
 -- going to short way around
 normalizeAngle x = 
-  let x' = modFloat x (2 * pi) in if x' >= pi then x' - 2 * pi else x'
+  let x' = modFloat x (2 * pi) in if x' > pi then x' - 2 * pi else x'
 
 normalizeCirculan r =
   let (a, b) = Ratio.split r
@@ -120,4 +120,8 @@ groupsOf k xs =
   case b of
     [] -> [a]
     _  -> a :: groupsOf k b
+
+allTogether (t1::ts) =
+  let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
+  List.all closeEnough ts
 

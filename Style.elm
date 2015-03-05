@@ -15,7 +15,7 @@ rotateArcColor        = fadeColor
 movesLeftTextColor    = winTextColor
 movesLeftCircleColor  = fadeColor
 defTextStyle h        =
-  { typeface = ["Open Sans", "sans-serif"]
+  { typeface = ["Josefin Sans", "sans-serif"]
   , height   = Just h
   , color    = winTextColor
   , bold     = False
@@ -30,7 +30,10 @@ frameHeight = totalHeight + 4
 globalStyle = 
   let buttonColor = Color.rgb 0 119 219 in
   Html.toElement 0 0 <| styleNode <|
-  [ ( ".swbutton"
+  [ ( ".win-difficulty-button"
+    , [ ("pointer-events", "auto") ]
+    )
+  , ( ".swbutton"
     , [ ("pointer-events", "auto")
       , ("width", px customButtonW)
       , ("height", px customButtonH)

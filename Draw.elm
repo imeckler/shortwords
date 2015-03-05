@@ -16,9 +16,9 @@ import Html.Events(..)
 import GameTypes(..)
 import Signal
 import Color
-import Stage
-import Stage (Stage, ForATime, Forever)
-import Stage.Infix(..)
+import Piece
+import Piece (Piece, ForATime, Forever)
+import Piece.Infix(..)
 import Util(..)
 import Graphics.Collage(..)
 import Graphics.Element(..)
@@ -84,32 +84,32 @@ animEvents updates state =
     _                       -> Nothing)
     updates state
 
-animate : AnimatableEvent -> Stage Forever Element
+animate : AnimatableEvent -> Piece Forever Element
 animate e = case e of
   FreshLevelE d ->
-    Stage.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
-  SimpleMoveE d  -> Stage.sustain (planeStage d)
+    Piece.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
+  SimpleMoveE d  -> Piece.sustain (planePiece d)
   WinE d         -> winAnim d
   LoseE d        ->
     let flashRed =
-          Stage.stayFor (1/4*second) (collage w h [filled Color.red (rect w h)])
+          Piece.stayFor (1/4*second) (collage w h [filled Color.red (rect w h)])
     in
-    planeStage {d | movesLeft = 0} +> \p -> 
-    Stage.stayFor (1/5 * second) p
+    planePiece {d | movesLeft = 0} +> \p -> 
+    Piece.stayFor (1/5 * second) p
     <> flashRed
-    <> Stage.stayFor (1/5 * second) p
+    <> Piece.stayFor (1/5 * second) p
     <> flashRed 
-    <> Stage.stayForever (plane {movesLeft=d.maxMoves, currTranses=d.init})
+    <> Piece.stayForever (plane {movesLeft=d.maxMoves, currTranses=d.init})
     
-animations : Element -> Signal Update -> Signal GameState -> Signal (Stage Forever Element)
+animations : Element -> Signal Update -> Signal GameState -> Signal (Piece Forever Element)
 animations openingScreen updates state =
-  filterMap (Maybe.map animate) (Stage.stayForever openingScreen)
+  filterMap (Maybe.map animate) (Piece.stayForever openingScreen)
     (animEvents updates state)
 
 hoverArt : LevelState -> Move -> Element
 hoverArt ls m =
   let rs =
-    Stage.finalValue (Move.interpret m ls.postMove)
+    Piece.finalValue (Move.interpret m ls.postMove)
     |> List.map2 (\c t -> groupTransform t [anR (withAlpha 0.5 <| lighten c)])
         Config.colors
     |> group
@@ -161,20 +161,41 @@ plane s =
   , resetButtonForm
   ]
 
+asText' n x = Text.centered (Text.style (defTextStyle n) (Text.fromString (toString x)))
+asTextWithStyle sty x = Text.centered (Text.style sty (Text.fromString (toString x)))
+
 buttonArt : Isom -> Form
 buttonArt =
   let (w, h) = (80, 80)
       r = 0.9 * min w h / 2
       thickness = 5
       thick c = let sty = solid c in {sty | width <- thickness}
-      arrow a =
-        let r' = r - 3 in
+      arrow a l =
+        let r' = (r - 3) * min 1 ((20 + l) / Config.maxTransLen) in
         groupTransform (Transform2D.rotation a)
         [ traced (thick Color.black) (segment (-r', 0) (r', 0))
         , filled Color.black (ngon 3 10)
           |> moveX (r' - 7)
         ]
   
+      fractionArt x =
+        let (p, q) = Ratio.split x
+            sty   = defTextStyle 22
+            sty'  = {sty | color <- Color.black, bold <- True}
+        in
+        if | q == 1    -> toForm <| asTextWithStyle {sty' | height <- Just 30} p
+           | otherwise ->
+             let d     = sqrt (w^2 + h^2) / 10
+                 d'    = 0.9 * d
+                 sty   = let s = solid Color.black in {s | width <- 2}
+                 slash = traced sty (segment (-d, -d) (d, d))
+             in
+             group
+             [ asTextWithStyle sty' (abs p) |> toForm |> move (-d', d')
+             , slash
+             , asTextWithStyle sty' q |> toForm |> move (d', -d')
+             ]
+
       arc r a =
         let n = 50
             t = a / n
@@ -202,15 +223,15 @@ buttonArt =
         ] |> rotate a
   in
   \t -> case t of
-    Translation (x, y) -> arrow (atan2 y x)
-    Rotation a       -> rotArc (normalizeAngle (Ratio.toFloat a))
-    Reflection a     -> refLine (normalizeAngle a)
-    Identity         -> group []
+    Translation (x, y) -> arrow (atan2 y x) (sqrt (x^2 + y^2))
+    Rotation a         -> group [rotArc (normalizeAngle (2 * pi * Ratio.toFloat a)), fractionArt a]
+    Reflection a       -> refLine (normalizeAngle a)
+    Identity           -> group []
 
 transButtons : Level -> Html
 transButtons lev = 
   let (buttonW, buttonH) = (80, 80)
-      n = List.length <| List.head <| lev.availableMoves
+      n = case lev.availableMoves of {[] -> 0; x::_ -> List.length x}
       moveButton m =
         List.map3 (\i c t ->
           div
@@ -240,11 +261,11 @@ transButtons lev =
   ] 
   <| List.map moveButton <| lev.availableMoves
 
-planeStage d =
-  Stage.map (\t -> plane {currTranses=t, movesLeft=d.movesLeft})
+planePiece d =
+  Piece.map (\t -> plane {currTranses=t, movesLeft=d.movesLeft})
     (Move.interpret d.move d.pre)
 
--- winAnim : Move -> GameState -> Stage Forever Element
+-- winAnim : Move -> GameState -> Piece Forever Element
 
 withOpacity o elt =
   Html.toElement (widthOf elt) (heightOf elt) <|
@@ -298,13 +319,13 @@ winAnim d =
         |> color fadeColor
         |> withOpacity (t / fadeTime)
   in
-  (planeStage d
+  (planePiece d
   +> \p ->
-  Stage.stayFor (1/2*second) p
-  <> Stage.for fadeTime (\t -> 
+  Piece.stayFor (1/2*second) p
+  <> Piece.for fadeTime (\t -> 
     flow inward
     [ winScreen t, p]))
-  |> Stage.sustain
+  |> Piece.sustain
 
 withButtons mainScreen s =
   flow down
@@ -337,3 +358,4 @@ overlayDifficultyButton d =
   [ Html.text (toString d) ]
 
 resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)
+

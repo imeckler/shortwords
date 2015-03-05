@@ -2,10 +2,10 @@ module Move where
 
 import Isom(Isom)
 import Isom
-import StageUtils as Stage
+import PieceUtils as Piece
 import Util(..)
-import Stage
-import Stage(Stage, ForATime)
+import Piece
+import Piece(Piece, ForATime)
 import Signal
 import Transform2D(Transform2D)
 import Transform2D
@@ -19,9 +19,9 @@ type alias Move = List Isom
 
 type alias SInterp = List Transform2D
 
-interpret : Move -> (SInterp -> Stage ForATime (List Transform2D))
+interpret : Move -> (SInterp -> Piece ForATime (List Transform2D))
 interpret m mInit =
-  Stage.sequence
+  Piece.sequence
   <| List.map2 (|>) mInit
   <| List.map (Isom.interpret) m
 
