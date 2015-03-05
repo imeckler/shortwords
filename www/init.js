@@ -1,10 +1,10 @@
-var highestLevel = localStorage.getItem('shortwords-level')
-highestLevel = highestLevel ? JSON.parse(highestLevel) : 0;
+var totalScore = localStorage.getItem('shortwords-score')
+totalScore = totalScore ? JSON.parse(totalScore) : 0;
 
-var main = Elm.fullscreen(Elm.Main, {setHighestLevel: highestLevel});
-main.ports.setHighestLevel.send(highestLevel);
+var main = Elm.fullscreen(Elm.Main, {setTotalScore: totalScore});
+main.ports.setHighestLevel.send(totalScore);
 
 main.ports.setLocalStorage.subscribe(function(i) {
-  localStorage.setItem('shortwords-level', i);
+  localStorage.setItem('shortwords-score', i);
 });
 

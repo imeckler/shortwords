@@ -30,20 +30,21 @@ import Easing (ease, float, easeInQuad, easeOutQuad)
 import Signal
 import Signal.Extra as Signal
 import Maybe
+import Random
+import Generate
 
 allTogether (t1::ts) =
   let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
   List.all closeEnough ts
 
-initialGameState : Game -> GameState
-initialGameState levs = let lev = levs ! 0 in
-  { levelState     = initialLevelState lev
-  , currLevel      = lev
-  , currLevelIndex = 0
-  , levels         = levs
-  , finished       = False
-  , lastMove       = Nothing
-  , highestLevel   = 0
+-- Pass a dummy level
+initialGameState : Level -> GameState
+initialGameState lev =
+  { levelState = initialLevelState lev
+  , currLevel  = lev
+  , lastMove   = Nothing
+  , totalScore = 0
+  , seed       = Random.initialSeed 10
   }
 
 initialLevelState : Level -> LevelState
@@ -54,48 +55,34 @@ initialLevelState lev =
   , endState  = Normal
   }
 
-setLevel : Int -> GameState -> GameState
-setLevel i s = let lev = s.levels ! i in
-  {s | currLevelIndex <- i, currLevel <- lev, levelState <- initialLevelState lev}
-
 update : Update -> GameState -> GameState
 update u s = case u of
-  NextLevel         -> updateNextLevel s
-  Clicked m         -> updateWithMove m s
-  Hovered _         -> s
-  Unhovered         -> s
-  SetLevel i        -> setLevel i s
-  SetHighestLevel n -> {s | highestLevel <- n}
-  SetEndState es    -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
-  ResetLevel        -> {s | levelState <- initialLevelState s.currLevel}
-  NoOp              -> s
+  PlayLevelOfDifficulty d -> playLevelOfDifficulty d s
+  Clicked m               -> updateWithMove m s
+  Hovered _               -> s
+  Unhovered               -> s
+  SetTotalScore n         -> {s | totalScore <- n}
+  SetEndState es          -> let ls = s.levelState in { s | levelState <- { ls | endState <- es } }
+  ResetLevel              -> {s | levelState <- initialLevelState s.currLevel}
+  NoOp                    -> s
 
-(!) a i = case Array.get i a of Just x -> x
-
-updateNextLevel s =
-  if onLastLevel s
-  then {s | finished <- True}
-  else
-    let i         = s.currLevelIndex + 1
-        currLevel = s.levels ! i
-    in
-    { levelState     = initialLevelState currLevel
-    , highestLevel   = max s.highestLevel i
-    , currLevelIndex = i
-    , currLevel      = currLevel
-    , levels         = s.levels
-    , finished       = False
-    , lastMove       = Nothing
-    } 
+playLevelOfDifficulty d s =
+  let (lev, seed') = Random.generate (Generate.randomLevel d) s.seed in
+  { s
+  | levelState <- initialLevelState lev
+  , currLevel  <- lev
+  , lastMove   <- Nothing
+  , seed       <- seed'
+  }
 
 updateWithMove : Move -> GameState -> GameState
 updateWithMove m s =
   let ls = s.levelState
       postMove' = Move.sMultiply (Move.sInterpret m) ls.postMove 
-      (ls', highestLevel') =
+      (ls', scoreIncr) =
         case ls.endState of
-          End wl Havent    -> ({ls | endState <- End wl Have}, s.highestLevel)
-          End (Win _) Have -> (ls, s.highestLevel)
+          End wl Havent    -> ({ls | endState <- End wl Have}, 0)
+          End (Win _) Have -> (ls, 0)
           _                ->
             if | allTogether postMove' ->
                 let movesLeft = ls.movesLeft - 1 in
@@ -106,7 +93,7 @@ updateWithMove m s =
                   , postMove  = postMove'
                   , preMove   = ls.postMove
                   }
-                , s.currLevelIndex + 1)
+                , difficultyScore s.currLevel.difficulty)
                | ls.movesLeft == 1      -> 
                  let s0 = (initialLevelState s.currLevel)
                      lose =
@@ -116,35 +103,34 @@ updateWithMove m s =
                        , init     = s.currLevel.initial
                       }
                  in
-                 ({s0 | endState <- End (Lose lose) Havent}, s.highestLevel)
+                 ({s0 | endState <- End (Lose lose) Havent}, 0)
                | otherwise             ->
                  ( { movesLeft = ls.movesLeft - 1
                    , postMove  = postMove'
                    , preMove   = ls.postMove
                    , endState  = Normal
                    }
-                 , s.highestLevel)
+                 , 0)
   in
   { s | levelState <- ls'
-  , lastMove <- Just m
-  , highestLevel <- max s.highestLevel highestLevel'
+  , lastMove       <- Just m
+  , totalScore     <- s.totalScore + scoreIncr
   }
 
 
-run setHighestLevel setLocalStorageChan g =
-  let updates =
+run setTotalScore setLocalStorageChan =
+  let dummyLevel = { availableMoves = [], maxMoves = 0, initial = [], difficulty = S }
+      updates =
         Signal.mergeMany
         [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
-        , Signal.map (\_ -> NextLevel) (Signal.subscribe nextLevelChan)
+        , Signal.map PlayLevelOfDifficulty (Signal.subscribe playLevelOfDifficultyChan)
         , Signal.map SetEndState (Signal.subscribe setEndStateChan)
         , Signal.map (\_ -> ResetLevel) (Signal.subscribe resetLevelChan)
-        , Signal.map SetLevel (Signal.subscribe setLevelChan)
-        , Signal.map SetHighestLevel setHighestLevel
+        , Signal.map SetTotalScore setTotalScore
         ]
 
-      state = Signal.foldp update (initialGameState g) updates
-
-      openingScreen = let l = g ! 0 in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
+      state = Signal.foldp update (initialGameState dummyLevel) updates
+      openingScreen = Draw.chooseDifficultyScreen 0 -- let l = g ! 0 in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
       buttons       =
         Signal.map (
@@ -179,8 +165,8 @@ run setHighestLevel setLocalStorageChan g =
             ChooseLevel -> Draw.chooseDifficultyScreen s.totalScore
             PlayLevel   ->
               flow inward
-              [ let lbs = Draw.levelButtons s in
-                container w (heightOf lbs) (topRightAt (absolute 0) (absolute 3)) lbs
+              [ let dbs = Draw.difficultyButtonsOverlay in
+                container w (heightOf dbs) (topRightAt (absolute 0) (absolute 3)) dbs
               , flow down
                 [ flow inward
                   [ hov
@@ -214,7 +200,7 @@ bordered r c elt =
   color c (container (widthOf elt + 2*r) (heightOf elt + 2*r) middle elt)
 
 sendSets setLocalStorageChan state =
-  Signal.foldp' max identity (Signal.map .highestLevel state)
+  Signal.foldp' max identity (Signal.map .totalScore state)
   |> Signal.dropRepeats
   |> Signal.map (Signal.send setLocalStorageChan)
   |> Native.Execute.schedule

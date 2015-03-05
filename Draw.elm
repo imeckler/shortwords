@@ -32,6 +32,7 @@ import Transform2D
 import Isom as I
 import Isom(Isom(..))
 import Native.Execute
+import Ratio
 
 withAlpha a c = let {red,green,blue} = Color.toRgb c in
   Color.rgba red green blue a
@@ -55,11 +56,8 @@ anR color =
 type AnimatableEvent
   = SimpleMoveE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | WinE { pre : Move.SInterp, move : Move, movesLeft : Int }
-  | GameWonE { pre : Move.SInterp, move : Move, movesLeft : Int }
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
   | FreshLevelE { init : Move.SInterp, maxMoves : Int }
-
-onLastLevel s = Array.length s.levels == s.currLevelIndex
 
 loseAnimEnds : Signal GameState -> Signal ()
 loseAnimEnds state =
@@ -76,30 +74,18 @@ animEvents updates state =
     Clicked m ->
       case ls.endState of
         End _ Have          -> Nothing
-        End (Win w) Havent  -> Just (if onLastLevel s then GameWonE w else WinE w)
+        End (Win w) Havent  -> Just (WinE w)
         End (Lose l) Havent -> Just (LoseE l)
         Normal              ->
           Just (SimpleMoveE { pre=ls.preMove, move=m, movesLeft=ls.movesLeft })
 
-    NextLevel  -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
-    ResetLevel -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
-    SetLevel _ -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
-    _          -> Nothing)
+    PlayLevelOfDifficulty d -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    ResetLevel              -> Just (FreshLevelE {init=s.currLevel.initial, maxMoves=s.currLevel.maxMoves})
+    _                       -> Nothing)
     updates state
 
 animate : AnimatableEvent -> Stage Forever Element
 animate e = case e of
-  GameWonE d ->
-    (planeStage d
-    +> \p -> Stage.for (1*second) (\t ->
-      flow outward
-      [ p
-      , Text.fromString "The end" |> Text.style (defTextStyle 60) |> Text.centered
-        |> container w h middle |> color fadeColor
-        |> withOpacity (t / (1*second))
-      ]))
-    |> Stage.sustain
-
   FreshLevelE d ->
     Stage.stayForever (plane {currTranses=d.init,movesLeft=d.maxMoves})
   SimpleMoveE d  -> Stage.sustain (planeStage d)
@@ -133,16 +119,6 @@ hoverArt ls m =
 
 centeredWithWidth w e =
   container w (heightOf e) middle e
-
-chooseDifficultyScreen : Int -> Element
-chooseDifficultyScreen =
-  let inRowsOfSize k     = groupsOf k >> List.map (Html.div [])
-      difficultyButton n = 
-        div [class "difficulty-button", onClick (chooseDifficultyChan n)]
-          [Html.text (toString n)]
-  in
-  Html.div []
-    (inRowsOfSize 2 <| List.map difficultyButton [3..8])
 
 titleScreen : Element
 titleScreen =
@@ -227,7 +203,7 @@ buttonArt =
   in
   \t -> case t of
     Translation (x, y) -> arrow (atan2 y x)
-    Rotation a       -> rotArc (normalizeAngle a)
+    Rotation a       -> rotArc (normalizeAngle (Ratio.toFloat a))
     Reflection a     -> refLine (normalizeAngle a)
     Identity         -> group []
 
@@ -274,35 +250,60 @@ withOpacity o elt =
   Html.toElement (widthOf elt) (heightOf elt) <|
     div [style [("opacity", toString o)]] [Html.fromElement elt]
 
+inRowsOfSize k = groupsOf k >> List.map (Html.div [])
+
+diffButtonW = 100
+diffButtonH = 100
+
+difficultyButton difficulty =
+  div
+  [ class "win-difficulty-button"
+  , onClick (Signal.send playLevelOfDifficultyChan difficulty)
+  , style
+    [ ("width", px diffButtonW)
+    , ("height", px diffButtonH)
+    ]
+  ]
+  [ Html.text (toString difficulty) ]
+
+difficultyButtonsDiv =
+  Html.div [] <| inRowsOfSize 2 <| List.map difficultyButton [S, M, L, XL]
+
+chooseDifficultyScreen totalScore =
+  flow down
+  [ let sty = defTextStyle 80 in
+    Text.fromString "Select a difficulty"
+    |> Text.style {sty | bold <- True}
+    |> Text.centered
+    |> centeredWithWidth w
+  , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
+  , Text.fromString ("Total score: " ++ toString totalScore)
+    |> Text.style (defTextStyle 60)
+    |> Text.centered
+    |> centeredWithWidth w
+  ]
+
 winAnim d =
-  let fadeTime               = 1 * second
-      winScreen t withButton =
-        flow down (
+  let fadeTime    = 1 * second
+      winScreen t =
+        flow down
         [ let sty = defTextStyle 80 in
           Text.fromString "You win!"
           |> Text.style {sty | bold <- True}
           |> Text.centered
           |> centeredWithWidth w
+        , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
         ]
-        ++ if withButton then
-        [ Html.div
-          [ onClick (Signal.send nextLevelChan ())
-          , class "swbutton"
-          ]
-          [ Html.text "Next Level" ]
-          |> Html.toElement w 30
-        ] else [])
         |> container w h middle
         |> color fadeColor
         |> withOpacity (t / fadeTime)
-
   in
   (planeStage d
   +> \p ->
   Stage.stayFor (1/2*second) p
   <> Stage.for fadeTime (\t -> 
     flow inward
-    [ winScreen t True, p]))
+    [ winScreen t, p]))
   |> Stage.sustain
 
 withButtons mainScreen s =
@@ -325,26 +326,14 @@ resetButton =
   [ Html.text "Reset" ]
   |> Html.toElement w customButtonH
 
-type ButtonStatus
-  = Active
-  | Inactive
-  | Current
-
-levelButtons s =
-  let n = Array.length s.levels in
-  listInit (\i -> 
-    levelButton i <|
-      if | i == s.currLevelIndex -> Current
-         | i <= s.highestLevel   -> Active
-         | otherwise             -> Inactive) n
+difficultyButtonsOverlay =
+  List.map overlayDifficultyButton [S, M, L, XL]
   |> div [id "level-button-panel"]
-  |> Html.toElement levelButtonW (n * levelButtonH)
+  |> Html.toElement levelButtonW (4 * levelButtonH)
 
-levelButton i status =
+overlayDifficultyButton d =
   div
-  (  class ("level-button " ++ case status of
-     { Active -> "active"; Inactive -> "inactive"; Current -> "current" })
-  :: if status == Active then [onClick (Signal.send setLevelChan i)] else [])
-  [ Html.text (toString i) ]
+  [ class "level-button active", onClick (Signal.send playLevelOfDifficultyChan d) ]
+  [ Html.text (toString d) ]
 
 resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)

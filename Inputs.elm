@@ -12,8 +12,8 @@ clickMoveChan = Signal.channel Nothing
 hoverMoveChan : Signal.Channel (Maybe Move)
 hoverMoveChan = Signal.channel Nothing
 
-nextLevelChan : Signal.Channel ()
-nextLevelChan = Signal.channel ()
+playLevelOfDifficultyChan : Signal.Channel Difficulty
+playLevelOfDifficultyChan = Signal.channel S
 
 startGameChan = Signal.channel ()
 
@@ -22,9 +22,6 @@ setEndStateChan = Signal.channel Normal
 
 resetLevelChan : Signal.Channel ()
 resetLevelChan = Signal.channel ()
-
-chooseDifficultyChan : Signal.Channel Int
-chooseDifficultyChan = Signal.channel 0
 
 backToMenuChan : Signal.Channel ()
 backToMenuChan = Signal.channel ()

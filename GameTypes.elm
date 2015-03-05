@@ -3,6 +3,7 @@ module GameTypes where
 import Move
 import Array(Array)
 import Move(Move)
+import Random
 
 type alias Game = Array Level
 
@@ -10,16 +11,15 @@ type alias Level =
   { availableMoves : List Move
   , maxMoves       : Int
   , initial        : Move.SInterp
+  , difficulty     : Difficulty
   }
 
 type alias GameState =
   { levelState     : LevelState
   , currLevel      : Level
-  , currLevelIndex : Int
-  , levels         : Array Level
-  , finished       : Bool
   , lastMove       : Maybe Move
   , totalScore     : Int
+  , seed           : Random.Seed
   }
 
 type Triggered
@@ -51,11 +51,18 @@ type alias AnimState =
   , movesLeft   : Int
   }
 
+type Difficulty = S | M | L | XL
+
+difficultyScore d = case d of
+  S -> 100
+  M -> 200
+  L -> 300
+  XL -> 400
+
 type Update
   = Clicked Move
-  | NextLevel
-  | SetLevel Int
-  | SetHighestLevel Int
+  | PlayLevelOfDifficulty Difficulty
+  | SetTotalScore Int
   | Hovered Move
   | Unhovered
   | ResetLevel

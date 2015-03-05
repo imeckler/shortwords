@@ -13,6 +13,7 @@ import Array
 import Random
 import Maybe
 import Ratio
+import GameTypes(Difficulty(..))
 
 rmap : (a -> b) -> Random.Generator a -> Random.Generator b
 rmap f g = Random.customGenerator (\s -> let (x, s') = Random.generate g s in (f x, s'))
@@ -106,10 +107,10 @@ randomMove p = Random.list p randomIsom
 -- difficulty is between 0 and 3
 randomLevel difficulty =
   let (minMoves, maxMoves, minGens, maxGens, minSheets, maxSheets) = case difficulty of
-        0 -> (2, 3, 2, 3, 2, 2)
-        1 -> (3, 3, 2, 3, 2, 2)
-        2 -> (3, 5, 3, 4, 2, 2)
-        3 -> (4, 7, 3, 4, 2, 3)
+        S  -> (2, 3, 2, 3, 2, 2)
+        M  -> (3, 3, 2, 3, 2, 2)
+        L  -> (3, 5, 3, 4, 2, 2)
+        XL -> (4, 7, 3, 4, 2, 3)
   in
   Random.int minMoves maxMoves `randThen` \numMoves ->
   Random.int minGens maxGens `randThen` \numGens ->
@@ -123,64 +124,8 @@ randomLevel difficulty =
           { availableMoves = gens'
           , initial        = x
           , maxMoves       = numMoves
+          , difficulty     = difficulty
           }
 
 b1 = fst <| Random.generate (Random.list 3 (randomMove 2)) (Random.initialSeed 32)
 
-main = 
-  let s0 = Random.initialSeed 10
-  in
-  Text.asText
-  <| Random.generate (randomLevel 2) s0
-  
-{-
-Maybe.map (List.map tuply)
-  <| fst
-  <| Random.generate (hardSInterpOfLength 6 (List.map M.sInterpret b1)) s0
-
-main = Text.plainText <| String.join "\n" <| List.map toString <|
-  hardWords (List.repeat 2 (T.rotation (pi/2)))
-    M.sMultiply
-    M.sInterpret
-    blev2
-    3
-  hardWord
-    (List.repeat n T.identity)
-    M.sMultiply
-    M.sInterpret
-    (Array.fromList bnice)
-    n
-
--}
-
-{-
-b1 =
-  [ [I.identity, I.translation (100, 100), I.translation (-100, -100) ]
-  , [I.rotation (pi/3), I.reflection (3*pi/4), I.identity]
-  , [I.reflection 0, I.identity, I.rotation (-pi/3)]
-  ]
-
-
-b2 =
-  [ [ I.reflection (2*pi/3), I.rotation (2*pi/3) ] 
-  , [ I.translation (-100, 0), I.rotation (2*pi/3) ] 
-  , [ I.reflection 0, I.rotation (2*pi/3) ] 
-  ]
-
-blev2 =
-  [ [I.translation (-100, 0), I.translation (-100, 0)]
-  , [I.translation (0, -100), I.translation (0, 100)]
-  , [I.rotation (pi / 2), I.rotation (pi)]
-  , [I.reflection (3*pi/4), I.identity]
-  ]
-
-bnice =
-  [ [ I.rotation (pi/3), I.translation (0, 50) ]
-  , [ I.translation (-100, 0), I.rotation (pi/2) ]
-  , [ I.rotation (pi/2), I.reflection (pi/2) ]
-  , [ I.reflection 0, I.rotation (pi/3) ]
-  ]
-
-(<>) = T.multiply
-
--}
