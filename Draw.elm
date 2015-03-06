@@ -265,8 +265,6 @@ planePiece d =
   Piece.map (\t -> plane {currTranses=t, movesLeft=d.movesLeft})
     (Move.interpret d.move d.pre)
 
--- winAnim : Move -> GameState -> Piece Forever Element
-
 withOpacity o elt =
   Html.toElement (widthOf elt) (heightOf elt) <|
     div [style [("opacity", toString o)]] [Html.fromElement elt]
@@ -313,7 +311,7 @@ winAnim d =
           |> Text.style {sty | bold <- True}
           |> Text.centered
           |> centeredWithWidth w
-        , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
+--        , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
         ]
         |> container w h middle
         |> color fadeColor

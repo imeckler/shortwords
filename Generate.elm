@@ -14,7 +14,7 @@ import Random
 import Maybe
 import Ratio
 import GameTypes(Difficulty(..))
-import Debug
+import Config
 
 rmap : (a -> b) -> Random.Generator a -> Random.Generator b
 rmap f g = Random.customGenerator (\s -> let (x, s') = Random.generate g s in (f x, s'))
@@ -31,44 +31,52 @@ randomSInterpOfLength =
     let gensArr = Array.fromList gens in
     Random.list n (rmap (\i -> case Array.get i gensArr of Just x -> x)
       (Random.int 0 (Array.length gensArr - 1)))
-    |> rmap (Debug.log "randomSInterpOfLength" >> List.foldl1 M.sMultiply >> List.map invert)
+    |> rmap (List.foldl1 M.sMultiply)
 
 sInterpsUpTo : Int -> List M.SInterp -> Iterator.Iterator M.SInterp
 sInterpsUpTo n gens =
   let gens' : Iterator.Iterator M.SInterp
       gens' = Iterator.fromList gens
       go k =
-        if | k == 0 -> Iterator.upTil 1 (\_ -> List.repeat 10 T.identity)
+        if | k == 0 -> Iterator.upTil 1 (\_ -> List.repeat Config.maxSheets T.identity)
            | otherwise ->
              Iterator.concatMap (\m -> Iterator.map (M.sMultiply m) gens')
                (go (k - 1))
   in
   go n
 
-isHardOfLength : Int -> List M.SInterp -> M.SInterp -> Bool
-isHardOfLength n gens m =
+isServiceableOfLength : Int -> List M.SInterp -> M.SInterp -> Bool
+isServiceableOfLength n gens m =
   Iterator.all (\i ->
-    Iterator.all (\m' -> not (close m m')) (sInterpsUpTo i gens))
+    Iterator.all (\m' -> not (isDiagonal (M.sMultiply m' m))) (sInterpsUpTo i gens))
     (Iterator.range 0 (n - 1))
 
 randomTrans = rmap I.sInterpret randomIsom
 
-{-
-randomTrans =
-  Random.float 0 (2 * pi)      `randThen` \r ->
-  Random.int 0 1               `randThen` \si ->
-  let ref = toFloat (1 - 2 * si) in
-  rdup (Random.float -100 100) `randThen` \(x, y) ->
-  rreturn (T.translation x y `T.multiply` T.rotation r `T.multiply` T.scaleY ref)
--}
 timeout = 1000
+
+-- Given gens g1 ... gk. Let H = <g_1,...,g_k>.
+-- want T \in Isom(E^2) such that
+-- - T = (g_i1...g_ik)^{-1} * (x, ..., x) for some x
+-- - there is no w \in H with w T = (y,...,y) such that |w| < k
+-- Say T = (t_1, ..., t_s)
+-- There can be no eee
+
+-- Given our random word (g_i1...g_ik) and our salt (x,...,x), w is an obstacle if
+-- exists y. w (g_i1...g_ik)^{-1} = (yX,...,yX)
+-- Which is the same thing as saying that w (g_i1...g_ik)^{-1} is diagonal.
+-- So a word is serviceable iff there are no obstacles. (Importantly the salt
+-- is irrelevant in testing serviceability.
+
+-- (Isom(E^2))^(\oplus numSheets) / <<diagonal>>
+-- <<diagonal>> = \bigcup_{x \in X} (x^G)^{\oplus numSheets}
 
 -- Given gens g1 ... gk
 -- want word (g_i1 ... g_in)^{-1} (initial state)
 -- such that g_i1...gin /= g_j1..g_jm for m < n
 
-hardSInterpOfLength : Int -> List M.SInterp -> Random.Generator (Maybe M.SInterp)
-hardSInterpOfLength n gens =
+serviceableInitialState : Int -> List M.SInterp -> Random.Generator (Maybe M.SInterp)
+serviceableInitialState n gens =
   -- this is wrong. the salt can make it easy. E.g., gens are a, b.
   -- Target is aB. If salt is A, then we just have the undo B.
   -- Also, should forbid solutiont which are aaa (i.e., which are all the same trans). 
@@ -78,14 +86,18 @@ hardSInterpOfLength n gens =
            | otherwise ->
              randomTrans `randThen` \salt -> let saltedm = M.sMultiply m (List.repeat 10 salt) in
                if allTogether saltedm then salted (k - 1) m else rreturn (Just saltedm) -}
--- hard/impossible level: MLLMSSMM
+--impossible: MLM(XL)LMS
+--tooeasy:MLM(XL)
+---- the problem with this is that the easy solution is not the identity, but another config
+---- where both are on top each other
+      invGens = List.map (List.map invert) gens
       go k =
         if k == 0
         then rreturn Nothing
-        else 
-          randomSInterpOfLength n gens `randThen` \m ->
-            if isHardOfLength n gens m && not (close m (List.repeat 3 T.identity))
-            then salted k m
+        else
+          randomSInterpOfLength n invGens `randThen` \mInv ->
+            if isServiceableOfLength n gens mInv
+            then rreturn (Just mInv)
             else go (k - 1)
   in
   go timeout
@@ -118,24 +130,11 @@ randomIsom =
         randomElem [2, 3, 4, 8]  `randThen` \denom ->
         Random.int 1 (denom - 1) `randThen` \num ->
         rreturn (I.rotation (num `Ratio.over` denom))
-        {-
-        Random.int 2 8 `randThen` \denom ->
-          rmap (\numi -> 
-            let num = if numi >= 0 then numi + 1 else numi in
-            I.rotation (num `Ratio.over` denom))
-            (Random.int (-denom // 2) (denom // 2 - 1))
--}
+
       randomReflection =
         randomElem [2, 3, 4, 8]  `randThen` \denom ->
         Random.int 0 (denom - 1) `randThen` \num ->
         rreturn (I.reflection <| 2 * pi * toFloat num / toFloat denom)
-{-
-        Random.int 2 8 `randThen` \denom ->
-          rmap (\numi -> 
-            let num = if numi >= 0 then numi + 1 else numi in
-            I.reflection <| toFloat num / toFloat denom)
-            (Random.int  (-denom // 2) (denom // 2))
-            -}
   in
   Random.int 0 3 `randThen` \i -> case i of
     0 -> randomTranslation
@@ -145,7 +144,6 @@ randomIsom =
 
 randomMove p = Random.list p randomIsom
 
--- difficulty is between 0 and 3
 randomLevel difficulty =
   let (minMoves, maxMoves, minGens, maxGens, minSheets, maxSheets) = case difficulty of
         S  -> (2, 3, 2, 3, 2, 2)
@@ -153,20 +151,18 @@ randomLevel difficulty =
         L  -> (3, 5, 3, 4, 2, 2)
         XL -> (4, 7, 3, 4, 2, 3)
   in
-  Random.int minMoves maxMoves `randThen` \numMoves ->
-  Random.int minGens maxGens `randThen` \numGens ->
-  Random.int minSheets maxSheets `randThen` \numSheets ->
+  Random.int minMoves maxMoves                 `randThen` \numMoves ->
+  Random.int minGens maxGens                   `randThen` \numGens ->
+  Random.int minSheets maxSheets               `randThen` \numSheets ->
     Random.list numGens (randomMove numSheets) `randThen` \gens ->
     let gens' = List.filter (not << List.all ((==) I.identity)) gens in
-    hardSInterpOfLength numMoves (List.map M.sInterpret gens') `randThen` \mtrans ->
+    serviceableInitialState numMoves (List.map M.sInterpret gens') `randThen` \mtrans ->
       case mtrans of
         Nothing -> randomLevel difficulty
-        Just x -> rreturn
+        Just x  -> rreturn
           { availableMoves = gens'
-          , initial        = List.map invert x
+          , initial        = x
           , maxMoves       = numMoves
           , difficulty     = difficulty
           }
-
-b1 = fst <| Random.generate (Random.list 3 (randomMove 2)) (Random.initialSeed 32)
 

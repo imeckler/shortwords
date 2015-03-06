@@ -14,6 +14,8 @@ totalHeight = h + buttonsHeight
 
 transitionTime = Time.second
 
+maxSheets = 3
+
 colors : List Color.Color
 colors =
   [ Color.rgb 0 119 219

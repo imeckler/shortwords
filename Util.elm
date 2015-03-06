@@ -125,3 +125,4 @@ allTogether (t1::ts) =
   let closeEnough t2 = distTransform2D t1 t2 < 0.01 in
   List.all closeEnough ts
 
+isDiagonal = allTogether
