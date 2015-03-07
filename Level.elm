@@ -81,16 +81,25 @@ updateWithMove m s =
           End wl Havent    -> ({ls | endState <- End wl Have}, 0)
           End (Win _) Have -> (ls, 0)
           _                ->
+            let scoreIncr = difficultyScore s.currLevel.difficulty
+                totalScore' = s.totalScore + scoreIncr
+            in
             if | allTogether postMove' ->
                 let movesLeft = ls.movesLeft - 1 in
                 ( { endState  =
-                      End (Win {pre=ls.postMove, move=m, movesLeft=movesLeft})
+                      End (Win
+                           { pre        = ls.postMove
+                           , move       = m
+                           , movesLeft  = movesLeft
+                           , totalScore = totalScore'
+                           , difficulty = s.currLevel.difficulty
+                           })
                         Havent
                   , movesLeft = movesLeft
                   , postMove  = postMove'
                   , preMove   = ls.postMove
                   }
-                , difficultyScore s.currLevel.difficulty)
+                , scoreIncr)
                | ls.movesLeft == 1      -> 
                  let s0 = (initialLevelState s.currLevel)
                      lose =
@@ -178,7 +187,7 @@ run setTotalScore setLocalStorageChan =
     in
     flow inward
     [ globalStyle
-    , container winW (4 + totalHeight) middle Draw.frame
+--    , container winW (4 + totalHeight) middle Draw.frame
     , game
     ])
     gameMode

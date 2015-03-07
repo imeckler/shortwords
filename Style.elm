@@ -25,7 +25,7 @@ defTextStyle h        =
 defaultFontStr = String.join "," ((defTextStyle 0).typeface)
 
 frameWidth = w + 8
-frameHeight = totalHeight + 4
+frameHeight = frameWidth + 4 -- totalHeight + 4
 
 globalStyle = 
   let buttonColor = Color.rgb 0 119 219 in
@@ -41,7 +41,7 @@ globalStyle =
       , ("background-color", colorStr buttonColor)
       , ("text-align", "center")
       , ("border-radius", px 9)
-      , ("border", "3px solid black")
+--      , ("border", "3px solid black")
       , ("margin", "0 auto")
       , ("font-size", px 20)
       , ("color", colorStr Color.white)
@@ -57,19 +57,19 @@ globalStyle =
   , ( ".top-isom"
     , [ ("border-top-left-radius", px 8)
       , ("border-top-right-radius", px 8)
-      , ("border-top", "4px solid black")
+--      , ("border-top", "4px solid black")
       ]
     )
   , ( ".bottom-isom"
     , [ ("border-bottom-left-radius", px 8)
       , ("border-bottom-right-radius", px 8)
-      , ("border-bottom", "4px solid black")
+--      , ("border-bottom", "4px solid black")
       ]
     )
   , ( ".isom"
-    , [ ("border-left", "4px solid black")
-      , ("border-right", "4px solid black")
-      , ("cursor", "pointer")
+    , [ ("cursor", "pointer")
+--      , ("border-right", "4px solid black")
+--      , ("border-left", "4px solid black")
       ]
     )
   , ( ".movebutton"
@@ -96,7 +96,7 @@ globalStyle =
       , ("margin-left", "auto")
       , ("margin-right", "auto")
       , ("text-align", "left")
-      , ("color", colorStr (defTextStyle 0).color)
+--      , ("color", colorStr (defTextStyle 0).color)
       ]
     )
   , ( "#titletext"
@@ -104,7 +104,7 @@ globalStyle =
       , ("text-align", "center")
       , ("margin", "0 auto")
       , ("font-weight", "800")
-      , ("color", colorStr (defTextStyle 0).color)
+ --     , ("color", colorStr (defTextStyle 0).color)
       ]
     )
   , ( ".level-button"
@@ -142,6 +142,49 @@ globalStyle =
       ]
     )
   , ("body", [("font-family", defaultFontStr)])
+  , ( "#win-screen"
+    , [ ("width", px w)
+      , ("height", px h)
+      , ("background-color", colorStr fadeColor)
+      , ("text-align", "center")
+      , ("position", "absolute")
+      , ("top", "0")
+      ]
+    )
+  , ( "#win-screen-inner"
+    , [ ("position", "relative")
+      , ("top", "30%")
+      ]
+    )
+  , ( "#win-screen h1"
+    , [ ("font-size", px 80)
+      , ("font-weight", "bold")
+      , ("margin", "0")
+      ]
+    )
+  , ( "#win-screen .score"
+    , [ ("font-size", px 50)
+      ]
+    )
+  , ( "#tweet .icon"
+    , [ ("background-image", "url(\"images/twitter.png\")") ]
+    )
+  , ( "#facebook .icon"
+    , [ ("background-image", "url(\"images/facebook.png\")") ]
+    )
+  , ( ".icon"
+    , [ ("background-repeat", "no-repeat")
+      , ("background-size", "auto 100%")
+      , ("background-position", "center center")
+      , ("pointer-events", "auto")
+      ]
+    )
+  , ( ".iconcon"
+    , [ ("display", "inline-block")
+      , ("margin-left", px 10)
+      , ("margin-right", px 10)
+      ]
+    )
   ]
 
 levelButtonH = 40

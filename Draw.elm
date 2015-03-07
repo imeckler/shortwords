@@ -11,7 +11,7 @@ import Move
 import Move(Move)
 import Html
 import Html(..)
-import Html.Attributes(style, class, id)
+import Html.Attributes(style, class, id, href, target)
 import Html.Events(..)
 import GameTypes(..)
 import Signal
@@ -55,7 +55,7 @@ anR color =
 
 type AnimatableEvent
   = SimpleMoveE { pre : Move.SInterp, move : Move, movesLeft : Int }
-  | WinE { pre : Move.SInterp, move : Move, movesLeft : Int }
+  | WinE WinData
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
   | FreshLevelE { init : Move.SInterp, maxMoves : Int }
 
@@ -146,8 +146,8 @@ movesLeftCircle n =
       sty = defTextStyle 40
   in
   group
-  [ filled Color.black (circle (r + 4))
-  , filled movesLeftCircleColor (circle r)
+  -- [ filled Color.black (circle (r + 4))
+  [ filled movesLeftCircleColor (circle r)
   , formText {sty | bold <- True, color <- Color.black} (toString n)
   ]
   |> move (-200, 200)
@@ -156,8 +156,8 @@ plane : AnimState -> Element
 plane s =
   collage w h
   [ axes
-  , movesLeftCircle s.movesLeft
   , group <| List.map2 (\c t -> groupTransform t [anR c]) Config.colors s.currTranses
+  , movesLeftCircle s.movesLeft
   , resetButtonForm
   ]
 
@@ -289,6 +289,21 @@ difficultyButtonsDiv =
   Html.div [] <| inRowsOfSize 2 <| List.map difficultyButton [S, M, L, XL]
 
 chooseDifficultyScreen totalScore =
+  let sty = defTextStyle 30
+      sel =
+        Text.fromString "Select a difficulty"
+        |> Text.style sty
+        |> Text.centered
+        |> centeredWithWidth w
+      arrow =
+        group
+        [ rect 90 4 |> filled Color.black
+        , ngon 3 10 |> filled Color.black |> moveX 40
+        ]
+        |> sing |> collage 200 40 |> centeredWithWidth w
+  in
+  flow down [ spacer w 50, sel, arrow ]
+  {-
   flow down
   [ let sty = defTextStyle 80 in
     Text.fromString "Select a difficulty"
@@ -296,26 +311,88 @@ chooseDifficultyScreen totalScore =
     |> Text.centered
     |> centeredWithWidth w
   , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
-  , Text.fromString ("Total score: " ++ toString totalScore)
+  , Text.fromString ("Score: " ++ toString totalScore)
     |> Text.style (defTextStyle 60)
     |> Text.centered
     |> centeredWithWidth w
+  ]
+  -}
+
+socialButtonSize = 40
+
+facebookButton =
+  Html.a
+  [ id "facebook"
+  , class "iconcon"
+  , target "_blank"
+  , href "https://www.facebook.com/sharer/sharer.php"
+  ]
+  [ div
+    [ class "icon"
+    , style [ ("width", px socialButtonSize), ("height", px socialButtonSize) ]
+    ] []
+  ]
+
+tweetButton =
+  let article difficulty = case difficulty of
+        XL -> "an"
+        _  -> "a"
+  in
+  \difficulty score ->
+  Html.a
+  [ id "tweet"
+  , class "iconcon"
+  , target "_blank"
+  , href
+    <| "https://twitter.com/intent/tweet?text=I+just+completed+"
+       ++ article difficulty ++ toString difficulty
+       ++ "+puzzle+in+%23ShortWords+and+my+score+is+"
+       ++ toString score
+       ++ ".+http%3A%2F%2Fbit.ly%2F1BWGPNt"
+  ]
+  [ div
+    [ class "icon"
+    , style
+      [ ("width", px socialButtonSize), ("height", px socialButtonSize) ]
+    ]
+    []
   ]
 
 winAnim d =
   let fadeTime    = 1 * second
       winScreen t =
+        div
+        [ id "win-screen", style [("opacity", toString (t / fadeTime))] ]
+        [ div [id "win-screen-inner"]
+          [ div []
+            [ h1 [] [ text "You win!" ]
+            , span
+              [ class "score" ]
+              [ text <| "Score: " ++ toString d.totalScore ]
+            ]
+          , div []
+            [ facebookButton, tweetButton d.difficulty d.totalScore ]
+          ]
+        ]
+        |> Html.toElement w h
+        {-
         flow down
         [ let sty = defTextStyle 80 in
           Text.fromString "You win!"
           |> Text.style {sty | bold <- True}
           |> Text.centered
           |> centeredWithWidth w
+        , Text.fromString ("Score: " ++ toString d.totalScore)
+          |> Text.style (defTextStyle 50)
+          |> Text.centered
+          |> centeredWithWidth w
+        , tweetButton d.difficulty d.totalScore
 --        , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
         ]
         |> container w h middle
         |> color fadeColor
         |> withOpacity (t / fadeTime)
+        -}
   in
   (planePiece d
   +> \p ->

@@ -45,6 +45,7 @@ sInterpsUpTo n gens =
   in
   go n
 
+-- add a rule about the translational part not being too big
 isServiceableOfLength : Int -> List M.SInterp -> M.SInterp -> Bool
 isServiceableOfLength n gens m =
   Iterator.all (\i ->

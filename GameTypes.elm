@@ -26,8 +26,15 @@ type Triggered
   = Have
   | Havent
 
+type alias WinData = 
+  { pre : Move.SInterp
+  , move : Move
+  , movesLeft : Int
+  , totalScore : Int
+  , difficulty : Difficulty
+  }
 type Ending
-  = Win {pre : Move.SInterp, move : Move, movesLeft : Int}
+  = Win WinData
   | Lose
     { pre       : Move.SInterp
     , move      : Move
