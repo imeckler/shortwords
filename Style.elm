@@ -24,9 +24,6 @@ defTextStyle h        =
   }
 defaultFontStr = String.join "," ((defTextStyle 0).typeface)
 
-frameWidth = w + 8
-frameHeight = frameWidth + 4 -- totalHeight + 4
-
 globalStyle = 
   let buttonColor = Color.rgb 0 119 219 in
   Html.toElement 0 0 <| styleNode <|
@@ -41,7 +38,6 @@ globalStyle =
       , ("background-color", colorStr buttonColor)
       , ("text-align", "center")
       , ("border-radius", px 9)
---      , ("border", "3px solid black")
       , ("margin", "0 auto")
       , ("font-size", px 20)
       , ("color", colorStr Color.white)
@@ -57,19 +53,15 @@ globalStyle =
   , ( ".top-isom"
     , [ ("border-top-left-radius", px 8)
       , ("border-top-right-radius", px 8)
---      , ("border-top", "4px solid black")
       ]
     )
   , ( ".bottom-isom"
     , [ ("border-bottom-left-radius", px 8)
       , ("border-bottom-right-radius", px 8)
---      , ("border-bottom", "4px solid black")
       ]
     )
   , ( ".isom"
     , [ ("cursor", "pointer")
---      , ("border-right", "4px solid black")
---      , ("border-left", "4px solid black")
       ]
     )
   , ( ".movebutton"
@@ -81,22 +73,11 @@ globalStyle =
   , ( ".movebutton:hover"
     , [("opacity", toString 0.6)]
     )
-  , ( "#mainframe"
-    , [ ("-webkit-box-sizing", "border-box")
-      , ("-moz-box-sizing", "border-box")
-      , ("box-sizing", "border-box")
-      , ("width", px frameWidth)
-      , ("height", px frameHeight)
-      , ("border", "4px solid black")
-      , ("border-radius", px 8)
-      ]
-    )
   , ( "#explanationtext"
     , [ ("width", px (w - 60))
       , ("margin-left", "auto")
       , ("margin-right", "auto")
       , ("text-align", "left")
---      , ("color", colorStr (defTextStyle 0).color)
       ]
     )
   , ( "#titletext"
@@ -104,7 +85,6 @@ globalStyle =
       , ("text-align", "center")
       , ("margin", "0 auto")
       , ("font-weight", "800")
- --     , ("color", colorStr (defTextStyle 0).color)
       ]
     )
   , ( ".level-button"

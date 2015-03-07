@@ -35,13 +35,13 @@ import Generate
 import Debug
 
 -- Pass a dummy level
-initialGameState : Level -> GameState
-initialGameState lev =
+initialGameState : Random.Seed -> Level -> GameState
+initialGameState seed lev =
   { levelState = initialLevelState lev
   , currLevel  = lev
   , lastMove   = Nothing
   , totalScore = 0
-  , seed       = Random.initialSeed 10
+  , seed       = seed
   }
 
 initialLevelState : Level -> LevelState
@@ -135,7 +135,10 @@ run setTotalScore setLocalStorageChan =
         , Signal.map SetTotalScore setTotalScore
         ]
 
-      state = Signal.foldp update (initialGameState dummyLevel) updates
+      state =
+        Signal.foldp' (\(_, u) -> update u)
+          (\(t0, _) -> initialGameState (Random.initialSeed (floor t0)) dummyLevel)
+          (Signal.map2 (,) startTime updates)
       openingScreen = Draw.chooseDifficultyScreen 0 -- let l = g ! 0 in Draw.plane {currTranses=l.initial, movesLeft=l.maxMoves}
       stages        = Draw.animations openingScreen updates state
       buttons       =
@@ -187,7 +190,6 @@ run setTotalScore setLocalStorageChan =
     in
     flow inward
     [ globalStyle
---    , container winW (4 + totalHeight) middle Draw.frame
     , game
     ])
     gameMode
@@ -196,6 +198,8 @@ run setTotalScore setLocalStorageChan =
     buttons
     state
     Window.dimensions
+
+startTime = Signal.sampleOn (Signal.constant ()) (Time.every 1000)
 
 wrapWithClass c elt =
   Html.toElement (widthOf elt) (heightOf elt) (Html.div [class c] [Html.fromElement elt])

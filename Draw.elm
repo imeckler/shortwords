@@ -146,7 +146,6 @@ movesLeftCircle n =
       sty = defTextStyle 40
   in
   group
-  -- [ filled Color.black (circle (r + 4))
   [ filled movesLeftCircleColor (circle r)
   , formText {sty | bold <- True, color <- Color.black} (toString n)
   ]
@@ -337,6 +336,11 @@ tweetButton =
   let article difficulty = case difficulty of
         XL -> "an"
         _  -> "a"
+      spellOut difficulty = case difficulty of
+        S  -> "small"
+        M  -> "medium"
+        L  -> "large"
+        XL -> "extra large"
   in
   \difficulty score ->
   Html.a
@@ -345,7 +349,7 @@ tweetButton =
   , target "_blank"
   , href
     <| "https://twitter.com/intent/tweet?text=I+just+completed+"
-       ++ article difficulty ++ toString difficulty
+       ++ article difficulty ++ "+" ++ spellOut difficulty
        ++ "+puzzle+in+%23ShortWords+and+my+score+is+"
        ++ toString score
        ++ ".+http%3A%2F%2Fbit.ly%2F1BWGPNt"
@@ -375,24 +379,6 @@ winAnim d =
           ]
         ]
         |> Html.toElement w h
-        {-
-        flow down
-        [ let sty = defTextStyle 80 in
-          Text.fromString "You win!"
-          |> Text.style {sty | bold <- True}
-          |> Text.centered
-          |> centeredWithWidth w
-        , Text.fromString ("Score: " ++ toString d.totalScore)
-          |> Text.style (defTextStyle 50)
-          |> Text.centered
-          |> centeredWithWidth w
-        , tweetButton d.difficulty d.totalScore
---        , Html.toElement (2 * diffButtonW) (2 * diffButtonH) <| difficultyButtonsDiv
-        ]
-        |> container w h middle
-        |> color fadeColor
-        |> withOpacity (t / fadeTime)
-        -}
   in
   (planePiece d
   +> \p ->
@@ -407,9 +393,6 @@ withButtons mainScreen s =
   [ mainScreen
   , Html.toElement w 300 (transButtons s.currLevel)
   ]
-
-frame =
-  div [ id "mainframe" ] [] |> Html.toElement frameWidth frameHeight
 
 loseAnimDuration = transitionTime + second * (1/5 + 1/4 + 1/5 + 1/4)
 

@@ -109,6 +109,9 @@ listInit f n =
 signalMap6 f s1 s2 s3 s4 s5 s6 =
   Signal.map5 f s1 s2 s3 s4 s5 ~ s6
 
+signalMap7 f s1 s2 s3 s4 s5 s6 s7 =
+  signalMap6 f s1 s2 s3 s4 s5 s6 ~ s7
+
 splitAt k xs =
   if | k == 0    -> ([], xs)
      | otherwise -> case xs of
