@@ -47,7 +47,12 @@ sInterpsUpTo n gens =
 
 -- add a rule about the translational part not being too big
 isServiceableOfLength : Int -> List M.SInterp -> M.SInterp -> Bool
-isServiceableOfLength n gens m =
+isServiceableOfLength =
+  let hasLargeTranslationalPart t =
+        let (x, y) = translationalPart t in abs x > Config.w/2 || abs y > Config.h/2
+  in
+  \n gens m ->
+  List.all (not << hasLargeTranslationalPart) m &&
   Iterator.all (\i ->
     Iterator.all (\m' -> not (isDiagonal (M.sMultiply m' m))) (sInterpsUpTo i gens))
     (Iterator.range 0 (n - 1))

@@ -63,6 +63,9 @@ normalizeCirculan r =
 tuply : Transform2D.Transform2D -> (Float, Float, Float, Float, Float, Float)
 tuply = Native.IsomUtil.tuply
 
+translationalPart : Transform2D.Transform2D -> (Float, Float)
+translationalPart t = let (_, _, x, _, _, y) = tuply t in (x, y)
+
 invert : Transform2D.Transform2D -> Transform2D.Transform2D
 invert m =
   let (a,b,x,c,d,y) = tuply m
