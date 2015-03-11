@@ -155,7 +155,7 @@ randomLevel difficulty =
         S  -> (2, 3, 2, 3, 2, 2)
         M  -> (3, 3, 2, 3, 2, 2)
         L  -> (3, 5, 3, 4, 2, 2)
-        XL -> (4, 7, 3, 4, 2, 3)
+        XL -> (4, 7, 3, 4, 2, 2)
   in
   Random.int minMoves maxMoves                 `randThen` \numMoves ->
   Random.int minGens maxGens                   `randThen` \numGens ->
