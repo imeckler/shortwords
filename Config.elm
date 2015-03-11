@@ -12,7 +12,7 @@ buttonsHeight = 300
 
 totalHeight = h + buttonsHeight
 
-transitionTime = Time.second
+transitionTime = Time.second / 2
 
 maxSheets = 3
 
