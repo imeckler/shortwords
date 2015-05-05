@@ -27,12 +27,13 @@ type Triggered
   | Havent
 
 type alias WinData = 
-  { pre : Move.SInterp
-  , move : Move
-  , movesLeft : Int
+  { pre        : Move.SInterp
+  , move       : Move
+  , movesLeft  : Int
   , totalScore : Int
   , difficulty : Difficulty
   }
+
 type Ending
   = Win WinData
   | Lose
