@@ -1,38 +1,32 @@
 module Draw where
 
-import List ((::))
 import Array
-import Style(..)
+import Style exposing (..)
 import String
-import Inputs(..)
+import Inputs exposing (..)
 import Maybe
 import Config
-import Move
-import Move(Move)
-import Html
-import Html(..)
-import Html.Attributes(style, class, id, href, target)
-import Html.Events(..)
-import GameTypes(..)
-import Signal
+import Move exposing (Move)
+import Html exposing (..)
+import Html.Attributes exposing (style, class, id, href, target)
+import Html.Events exposing (..)
+import GameTypes exposing (..)
 import Color
-import Piece
-import Piece (Piece, ForATime, Forever)
-import Piece.Infix(..)
-import Util(..)
-import Graphics.Collage(..)
-import Graphics.Element(..)
-import Time
-import Time(second)
-import Easing (ease, float, easeInQuad, easeOutQuad)
-import Config(..)
+import Piece exposing (Piece, ForATime, Forever)
+import Piece.Infix exposing (..)
+import Util exposing (..)
+import Graphics.Collage exposing (..)
+import Graphics.Element exposing (..)
+import Time exposing (second)
+import Easing exposing (ease, float, easeInQuad, easeOutQuad)
+import Config exposing (..)
 import Text
-import List
 import Transform2D
 import Isom as I
-import Isom(Isom(..))
+import Isom exposing (Isom(..))
 import Native.Execute
 import Ratio
+import Task exposing (Task)
 
 withAlpha a c = let {red,green,blue} = Color.toRgb c in
   Color.rgba red green blue a
@@ -44,13 +38,13 @@ withBorder b c e =
 formText sty =
   Text.fromString
   >> Text.style sty 
-  >> Text.centered
+  >> centered
   >> toForm
 
 anR color =
   let sty = defTextStyle 55 in
   Text.style {sty | bold <- True, color <- color} (Text.fromString "R")
-  |> Text.centered
+  |> centered
   |> toForm
 
 type AnimatableEvent
@@ -59,14 +53,15 @@ type AnimatableEvent
   | LoseE { pre : Move.SInterp, move : Move,init : Move.SInterp, maxMoves : Int }
   | FreshLevelE { init : Move.SInterp, maxMoves : Int }
 
-loseAnimEnds : Signal GameState -> Signal ()
+loseAnimEnds : Signal GameState -> Signal (Task x ())
 loseAnimEnds state =
   filterMap (\s -> case s.levelState.endState of
-    End (Lose _) Havent -> Just (Signal.send setEndStateChan Normal)
+    End (Lose _) Havent -> Just (Signal.send setEndStateChan.address Normal)
     _                   -> Nothing)
-    (Signal.send setEndStateChan Normal) state
+    (Signal.send setEndStateChan.address Normal) state
   |> Time.delay loseAnimDuration
-  |> Native.Execute.schedule
+--  |> Native.Execute.performSignal
+--  |> Native.Execute.schedule
 
 animEvents : Signal Update -> Signal GameState -> Signal (Maybe AnimatableEvent)
 animEvents updates state =
@@ -129,7 +124,7 @@ titleScreen =
     [ Html.text "The goal of the game is to get all R's in the same position using the moves available. The icons on the buttons indicate what effect they have."
     ]
   , Html.div
-    [ onClick (Signal.send startGameChan ())
+    [ onClick startGameChan.address ()
     , class "swbutton"
     ]
     [ Html.text "Play" ]
@@ -160,8 +155,8 @@ plane s =
   , resetButtonForm
   ]
 
-asText' n x = Text.centered (Text.style (defTextStyle n) (Text.fromString (toString x)))
-asTextWithStyle sty x = Text.centered (Text.style sty (Text.fromString (toString x)))
+asText' n x = centered (Text.style (defTextStyle n) (Text.fromString (toString x)))
+asTextWithStyle sty x = centered (Text.style sty (Text.fromString (toString x)))
 
 buttonArt : Isom -> Form
 buttonArt =
@@ -247,9 +242,9 @@ transButtons lev =
         )
         [0..(n - 1)] Config.colors m
         |> div
-        [ onClick (Signal.send clickMoveChan (Just m))
-        , onMouseEnter (Signal.send hoverMoveChan (Just m))
-        , onMouseLeave (Signal.send hoverMoveChan Nothing)
+        [ onClick clickMoveChan.address (Just m)
+        , onMouseEnter hoverMoveChan.address (Just m)
+        , onMouseLeave hoverMoveChan.address Nothing
         , class "movebutton"
         ]
   in
@@ -276,7 +271,7 @@ diffButtonH = 100
 difficultyButton difficulty =
   div
   [ class "win-difficulty-button"
-  , onClick (Signal.send playLevelOfDifficultyChan difficulty)
+  , onClick playLevelOfDifficultyChan.address difficulty
   , style
     [ ("width", px diffButtonW)
     , ("height", px diffButtonH)
@@ -292,7 +287,7 @@ chooseDifficultyScreen totalScore =
       sel =
         Text.fromString "Select a difficulty"
         |> Text.style sty
-        |> Text.centered
+        |> centered
         |> centeredWithWidth w
       arrow =
         group
@@ -369,10 +364,10 @@ winAnim d =
         [ id "win-screen", style [("opacity", toString (t / fadeTime))] ]
         [ div [id "win-screen-inner"]
           [ div []
-            [ h1 [] [ text "You win!" ]
+            [ h1 [] [ Html.text "You win!" ]
             , span
               [ class "score" ]
-              [ text <| "Score: " ++ toString d.totalScore ]
+              [ Html.text <| "Score: " ++ toString d.totalScore ]
             ]
           , div []
             [ facebookButton, tweetButton d.difficulty d.totalScore ]
@@ -399,7 +394,7 @@ loseAnimDuration = transitionTime + second * (1/5 + 1/4 + 1/5 + 1/4)
 resetButton =
   div
   [ class "swbutton"
-  , onClick (Signal.send resetLevelChan ())
+  , onClick resetLevelChan.address ()
   , style  [ ("width", px 100) ]
   ]
   [ Html.text "Reset" ]
@@ -412,7 +407,7 @@ difficultyButtonsOverlay =
 
 overlayDifficultyButton d =
   div
-  [ class "level-button active", onClick (Signal.send playLevelOfDifficultyChan d) ]
+  [ class "level-button active", onClick playLevelOfDifficultyChan.address d ]
   [ Html.text (toString d) ]
 
 resetButtonForm = toForm resetButton |> move (w/2 - 60, -h/2 + 40)

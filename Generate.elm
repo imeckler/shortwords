@@ -2,18 +2,16 @@ module Generate where
 
 import String
 import Text
-import List
-import List((::))
 import Transform2D as T
 import Isom as I
-import Util(..)
+import Util exposing (..)
 import Move as M
 import Iterator
 import Array
 import Random
 import Maybe
 import Ratio
-import GameTypes(Difficulty(..))
+import GameTypes exposing (Difficulty(..))
 import Config
 
 rmap : (a -> b) -> Random.Generator a -> Random.Generator b
@@ -31,7 +29,7 @@ randomSInterpOfLength =
     let gensArr = Array.fromList gens in
     Random.list n (rmap (\i -> case Array.get i gensArr of Just x -> x)
       (Random.int 0 (Array.length gensArr - 1)))
-    |> rmap (List.foldl1 M.sMultiply)
+    |> rmap (foldl1 M.sMultiply)
 
 sInterpsUpTo : Int -> List M.SInterp -> Iterator.Iterator M.SInterp
 sInterpsUpTo n gens =

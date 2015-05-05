@@ -25,12 +25,18 @@
 Elm.Native.Execute = {};
 
 Elm.Native.Execute.make = function(localRuntime) {
+    // localRuntime.Native = localRuntime.Native || {};
+    var Task = Elm.Native.Task.make(localRuntime);
 
-    localRuntime.Native = localRuntime.Native || {};
     localRuntime.Native.Execute = localRuntime.Native.Execute || {};
     if (localRuntime.Native.Execute.values) {
         return localRuntime.Native.Execute.values;
     }
+
+    return localRuntime.Native.Execute.values = {
+        performSignal: Task.performSignal
+    };
+
     var Signal = Elm.Signal.make(localRuntime);
     
     // schedule : Signal Message -> Signal ()
@@ -64,9 +70,5 @@ Elm.Native.Execute.make = function(localRuntime) {
         return A2(Signal.sampleOn, output, A3( Signal.map2, k, output, forced));
     }
 
-    return localRuntime.Native.Execute.values = {
-        schedule: schedule,
-        complete : complete
-    };
 };
 

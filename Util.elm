@@ -6,15 +6,13 @@ import Debug
 
 import Array
 import Color
-import Graphics.Element(..)
+import Graphics.Element exposing (..)
 import String
 import Html
-import List
-import List((::))
 import Native.IsomUtil
 import Transform2D
 import Signal
-import Signal(Signal, (~))
+import Signal exposing (Signal, (~))
 import Ratio
 
 sing x = [x]
@@ -25,7 +23,7 @@ filterFold f z s =
     Just b' -> (b', True)
     Nothing -> (b, False))
     (z, True) s
-  |> Signal.keepIf snd (z, True)
+  |> Signal.filter snd (z, True)
   |> Signal.map fst
 
 filterMap : (a -> Maybe b) -> b -> Signal a -> Signal b
@@ -132,3 +130,22 @@ allTogether (t1::ts) =
   List.all closeEnough ts
 
 isDiagonal = allTogether
+
+foldr1 f =
+  let go xs = case xs of
+        [x]    -> x
+        x::xs' -> f x (go xs')
+  in
+  \xs -> case xs of
+    [] -> Debug.crash "Util.foldr1: Empty list"
+    _  -> go xs
+
+foldl1 f =
+  let go acc xs = case xs of
+        []      -> acc
+        x :: xs -> go (f x acc) xs
+  in
+  \xs -> case xs of
+    []     -> Debug.crash "Util.foldl1: Empty list"
+    x::xs' -> go x xs'
+          

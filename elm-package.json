@@ -6,14 +6,17 @@
     "source-directories": [
         "."
     ],
-    "exposed-modules": [],
+    "exposed-modules": [
+        "Main"
+    ],
     "native-modules": true,
     "dependencies": {
-        "Apanatshka/elm-signal-extra": "3.3.1 <= v < 4.0.0",
-        "Dandandan/Easing": "1.0.1 <= v < 2.0.0",
-        "elm-lang/core": "1.1.0 <= v < 2.0.0",
-        "evancz/elm-html": "2.0.0 <= v < 3.0.0",
-        "imeckler/piece": "1.0.0 <= v < 2.0.0",
-        "imeckler/ratio": "1.1.0 <= v < 2.0.0"
-    }
+        "Apanatshka/elm-signal-extra": "5.1.0 <= v < 6.0.0",
+        "Dandandan/Easing": "1.0.3 <= v < 2.0.0",
+        "elm-lang/core": "2.0.1 <= v < 3.0.0",
+        "evancz/elm-html": "3.0.0 <= v < 4.0.0",
+        "imeckler/piece": "2.0.1 <= v < 3.0.0",
+        "imeckler/ratio": "1.3.1 <= v < 2.0.0"
+    },
+    "elm-version": "0.15.0 <= v < 0.16.0"
 }

@@ -1,27 +1,27 @@
 module Inputs where
 
 import Signal
-import GameTypes(..)
-import Move(Move)
+import GameTypes exposing (..)
+import Move exposing (Move)
 
-moveClicks = Signal.subscribe clickMoveChan
+moveClicks = clickMoveChan.signal
 
-clickMoveChan : Signal.Channel (Maybe Move)
-clickMoveChan = Signal.channel Nothing
+clickMoveChan : Signal.Mailbox (Maybe Move)
+clickMoveChan = Signal.mailbox Nothing
 
-hoverMoveChan : Signal.Channel (Maybe Move)
-hoverMoveChan = Signal.channel Nothing
+hoverMoveChan : Signal.Mailbox (Maybe Move)
+hoverMoveChan = Signal.mailbox Nothing
 
-playLevelOfDifficultyChan : Signal.Channel Difficulty
-playLevelOfDifficultyChan = Signal.channel S
+playLevelOfDifficultyChan : Signal.Mailbox Difficulty
+playLevelOfDifficultyChan = Signal.mailbox S
 
-startGameChan = Signal.channel ()
+startGameChan = Signal.mailbox ()
 
-setEndStateChan : Signal.Channel EndState
-setEndStateChan = Signal.channel Normal
+setEndStateChan : Signal.Mailbox EndState
+setEndStateChan = Signal.mailbox Normal
 
-resetLevelChan : Signal.Channel ()
-resetLevelChan = Signal.channel ()
+resetLevelChan : Signal.Mailbox ()
+resetLevelChan = Signal.mailbox ()
 
-backToMenuChan : Signal.Channel ()
-backToMenuChan = Signal.channel ()
+backToMenuChan : Signal.Mailbox ()
+backToMenuChan = Signal.mailbox ()

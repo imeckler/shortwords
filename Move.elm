@@ -1,13 +1,13 @@
 module Move where
 
-import Isom(Isom)
+import Isom exposing (Isom)
 import Isom
 import PieceUtils as Piece
-import Util(..)
+import Util exposing (..)
 import Piece
-import Piece(Piece, ForATime)
+import Piece exposing (Piece, ForATime)
 import Signal
-import Transform2D(Transform2D)
+import Transform2D exposing (Transform2D)
 import Transform2D
 import List
 import Maybe

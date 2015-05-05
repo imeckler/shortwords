@@ -2,14 +2,15 @@ module Main where
 
 import Signal
 import Array
-import Util(..)
+import Util exposing (..)
 import List
 import Level
 import Transform2D as T
-import Transform2D(..)
+import Transform2D exposing (..)
 import Isom as I
 import Move as M
 import Ratio as R
+import Task exposing (Task)
 
 reflection a =
   multiply (rotation a)
@@ -17,7 +18,7 @@ reflection a =
 
 salted salt =
   List.map (\m -> T.multiply m salt)
-  << List.foldr1 M.sMultiply
+  << foldr1 M.sMultiply
   << List.map invMove
   << List.reverse
 
@@ -55,14 +56,22 @@ veryEasy2 =
   , initial        = salted (T.translation -100 100 <> reflection (pi/2)) [m0,m1]
   }
 
-main = Level.run setTotalScore setLocalStorageChan
+(ends_, sets_, game) = Level.run setTotalScore setLocalStorageChan.address
+
+port ends : Signal (Task x ())
+port ends = ends_
+
+port sets : Signal (Task x ())
+port sets = sets_
+
+main = game
 
 -- BAD stuff
-setLocalStorageChan : Signal.Channel Int
-setLocalStorageChan = Signal.channel 0
+setLocalStorageChan : Signal.Mailbox Int
+setLocalStorageChan = Signal.mailbox 0
 
 port setLocalStorage : Signal Int
-port setLocalStorage = Signal.subscribe setLocalStorageChan
+port setLocalStorage = setLocalStorageChan.signal
 
 port setTotalScore : Signal Int
 

@@ -33,7 +33,6 @@ concatenation, and most importantly, folding in constant space with early return
 
 import Native.Iterator
 import Array
-import List((::))
 
 type Iterator a
   = Fun Int (Int -> a)

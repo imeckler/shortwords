@@ -1,13 +1,13 @@
 module Isom where
 
-import Util(..)
+import Util exposing (..)
 import Transform2D
-import Transform2D(Transform2D)
+import Transform2D exposing (Transform2D)
 import List
 import Piece
-import Piece(Piece, ForATime)
-import Easing(..)
-import Config(transitionTime)
+import Piece exposing (Piece, ForATime)
+import Easing exposing (..)
+import Config exposing (transitionTime)
 import Ratio
 
 type Isom
@@ -24,7 +24,7 @@ sInterpret m = case m of
   Translation pt -> uncurry Transform2D.translation pt
   Rotation r     -> Transform2D.rotation (rationalRot r)
   Reflection a   ->
-    List.foldr1 Transform2D.multiply
+    foldr1 Transform2D.multiply
     [ Transform2D.rotation a
     , Transform2D.scaleY -1
     , Transform2D.rotation (-a)
