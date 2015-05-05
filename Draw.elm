@@ -24,7 +24,6 @@ import Text
 import Transform2D
 import Isom as I
 import Isom exposing (Isom(..))
-import Native.Execute
 import Ratio
 import Task exposing (Task)
 
@@ -60,8 +59,6 @@ loseAnimEnds state =
     _                   -> Nothing)
     (Signal.send setEndStateChan.address Normal) state
   |> Time.delay loseAnimDuration
---  |> Native.Execute.performSignal
---  |> Native.Execute.schedule
 
 animEvents : Signal Update -> Signal GameState -> Signal (Maybe AnimatableEvent)
 animEvents updates state =
