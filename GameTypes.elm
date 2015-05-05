@@ -1,8 +1,8 @@
 module GameTypes where
 
 import Move
-import Array(Array)
-import Move(Move)
+import Array exposing (Array)
+import Move exposing (Move)
 import Random
 
 type alias Game = Array Level

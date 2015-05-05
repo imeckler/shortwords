@@ -1,8 +1,7 @@
 module PieceUtils where
 
-import List
 import Piece
-import Piece.Internal(..)
+import Piece.Internal exposing (..)
 
 durMin d1 d2 = case (d1, d2) of
   (Forever, _) -> d2

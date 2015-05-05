@@ -1,10 +1,10 @@
 module Style where
 
-import Util(..)
+import Util exposing (..)
 import Color
 import String
 import Html
-import Config(..)
+import Config exposing (..)
 
 backgroundColor       = Color.rgb 223 223 223
 borderColor           = Color.rgb 188 188 188

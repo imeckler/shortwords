@@ -1,33 +1,30 @@
 module Level where
 
 import Array
-import Native.Execute
-import Style(globalStyle)
-import Config(..)
-import Inputs(..)
-import GameTypes(..)
+import Style exposing (globalStyle)
+import Config exposing (..)
+import Inputs exposing (..)
+import GameTypes exposing (..)
 import Window
-import Util(..)
+import Util exposing (..)
 import Move
-import Move(Move)
+import Move exposing (Move)
 import Draw
-import Graphics.Element(..)
-import Graphics.Collage(..)
-import Transform2D(Transform2D)
+import Graphics.Element exposing (..)
+import Graphics.Collage exposing (..)
+import Transform2D exposing (Transform2D)
 import Transform2D
 import Html
-import Html.Events(..)
-import Html.Attributes(class)
+import Html.Events exposing (..)
+import Html.Attributes exposing (class)
 import Text
 import Color
-import Time (second)
+import Time exposing (second)
 import Time
 import Piece
-import Piece(Piece, Forever, ForATime)
-import Piece.Infix(..)
-import List
-import Easing (ease, float, easeInQuad, easeOutQuad)
-import Signal
+import Piece exposing (Piece, Forever, ForATime)
+import Piece.Infix exposing (..)
+import Easing exposing (ease, float, easeInQuad, easeOutQuad)
 import Signal.Extra as Signal
 import Maybe
 import Random
@@ -128,10 +125,10 @@ run setTotalScore setLocalStorageChan =
   let dummyLevel = { availableMoves = [], maxMoves = 0, initial = [], difficulty = S }
       updates =
         Signal.mergeMany
-        [ filterMap (Maybe.map Clicked) NoOp (Signal.subscribe clickMoveChan)
-        , Signal.map PlayLevelOfDifficulty (Signal.subscribe playLevelOfDifficultyChan)
-        , Signal.map SetEndState (Signal.subscribe setEndStateChan)
-        , Signal.map (\_ -> ResetLevel) (Signal.subscribe resetLevelChan)
+        [ filterMap (Maybe.map Clicked) NoOp clickMoveChan.signal
+        , Signal.map PlayLevelOfDifficulty playLevelOfDifficultyChan.signal
+        , Signal.map SetEndState setEndStateChan.signal
+        , Signal.map (\_ -> ResetLevel) resetLevelChan.signal
         , Signal.map SetTotalScore setTotalScore
         ]
 
@@ -150,10 +147,8 @@ run setTotalScore setLocalStorageChan =
           state
     
       hovers = 
-        Signal.subscribe hoverMoveChan
-        |> Signal.dropRepeats
-        |> Signal.merge (Signal.map (\_ -> Nothing)
-            (Signal.subscribe clickMoveChan))
+        Signal.dropRepeats hoverMoveChan.signal
+        |> Signal.merge (Signal.map (\_ -> Nothing) clickMoveChan.signal)
         |> Signal.map2 (\s x -> case s.levelState.endState of {
              Normal -> x; _ -> Nothing}) state
 
@@ -165,8 +160,11 @@ run setTotalScore setLocalStorageChan =
         Signal.map2 (\mm s -> maybe empty (Draw.hoverArt s.levelState) mm)
           hovers state
 
-      gameMode = Signal.foldp (\_ _ -> PlayLevel) TitleScreen (Signal.subscribe startGameChan)
+      gameMode = Signal.foldp (\_ _ -> PlayLevel) TitleScreen startGameChan.signal
   in
+  ( ends_
+  , sets_
+  ,
   signalMap6 (\mode mainScreen hov butts s (winW, winH) ->
     let screen =
           case mode of
@@ -198,6 +196,7 @@ run setTotalScore setLocalStorageChan =
     buttons
     state
     Window.dimensions
+  )
 
 startTime = Signal.sampleOn (Signal.constant ()) (Time.every 1000)
 
@@ -213,5 +212,4 @@ sendSets setLocalStorageChan state =
   Signal.foldp' max identity (Signal.map .totalScore state)
   |> Signal.dropRepeats
   |> Signal.map (Signal.send setLocalStorageChan)
-  |> Native.Execute.schedule
 
