@@ -7,10 +7,36 @@
     <!-- link href='http://fonts.googleapis.com/css?family=Open+Sans:700,600italic,800,600' rel='stylesheet' type='text/css' -->
     <script type="text/javascript" src='shortwords.js'></script>
     <title>Short Words: A Game</title>
+    <style>
+      #footer {
+        font-family: Josefin Sans, sans-serif;
+        text-align:center;
+      }
+
+      #footer a {
+        text-decoration: none;
+        color: black;
+      }
+
+      #footer a:visited {
+        color: black;
+      }
+
+      #footer a:hover {
+        text-decoration: underline;
+        color: blue;
+      }
+
+    </style>
   </head>
   <body>
     <div id='game'></div>
-    <h2 style='font-family:Josefin Sans, sans-serif;text-align:center'>Short Words</h2>
+    <div id='footer'>
+      <h2>Short Words</h2>
+      <a id='sourcelink' href='https://github.com/imeckler/shortwords/tree/rand'>
+        <div>Source</div>
+      </a>
+    </div>
   </body>
   <script type="text/javascript" src='init.js'></script>
 </html>
