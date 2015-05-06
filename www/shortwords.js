@@ -3010,7 +3010,7 @@ Elm.GameTypes.make = function (_elm) {
             case "S": return 100;
             case "XL": return 400;}
          _U.badCase($moduleName,
-         "between lines 63 and 67");
+         "between lines 64 and 68");
       }();
    };
    var XL = {ctor: "XL"};
